@@ -44,12 +44,29 @@ pub struct ScanRecord {
 }
 
 impl Database {
-    /// Opens (creating if needed) the database file and applies the schema.
-    pub fn open(path: &Path) -> rusqlite::Result<Self> {
-        Self::from_connection(Connection::open(path)?)
+    /// Opens the database, creating it on first run. If the existing file is
+    /// unusable (e.g. corrupted), it is set aside and recreated; if that also
+    /// fails, an in-memory database is used. The app must always start, so this
+    /// never returns an error.
+    pub fn open(path: &Path) -> Self {
+        Self::try_open(path).unwrap_or_else(|err| {
+            log::warn!("database at {path:?} is unusable ({err}); recreating it");
+            let _ = std::fs::rename(path, path.with_extension("corrupt"));
+            Self::try_open(path).unwrap_or_else(|_| Self::in_memory())
+        })
     }
 
-    fn from_connection(conn: Connection) -> rusqlite::Result<Self> {
+    /// An ephemeral database, used as a last-resort fallback and in tests.
+    pub fn in_memory() -> Self {
+        Self::try_from_connection(Connection::open_in_memory().expect("open in-memory database"))
+            .expect("apply schema to in-memory database")
+    }
+
+    fn try_open(path: &Path) -> rusqlite::Result<Self> {
+        Self::try_from_connection(Connection::open(path)?)
+    }
+
+    fn try_from_connection(conn: Connection) -> rusqlite::Result<Self> {
         conn.execute_batch(include_str!("schema.sql"))?;
         Ok(Self {
             conn: Mutex::new(conn),
@@ -327,10 +344,6 @@ mod tests {
     use super::*;
 
     impl Database {
-        fn in_memory() -> Self {
-            Self::from_connection(Connection::open_in_memory().unwrap()).unwrap()
-        }
-
         fn file_count(&self) -> i64 {
             self.conn
                 .lock()
@@ -455,6 +468,18 @@ mod tests {
             )
             .unwrap();
         assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn recovers_from_a_corrupt_database_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("file_lens.db");
+        std::fs::write(&path, b"definitely not a sqlite database").unwrap();
+
+        // Must not panic; the unusable file is recreated into a working database.
+        let db = Database::open(&path);
+        db.set_setting("theme", "dark").unwrap();
+        assert_eq!(db.get_setting("theme").unwrap().as_deref(), Some("dark"));
     }
 
     #[test]

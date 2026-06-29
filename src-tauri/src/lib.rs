@@ -46,10 +46,18 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(ScanState::default())
         .setup(|app| {
-            // Open the database in the per-user app-data dir, creating it on first run.
-            let dir = app.path().app_data_dir()?;
-            std::fs::create_dir_all(&dir)?;
-            let db = Database::open(&dir.join("file_lens.db"))?;
+            // Open the database in the per-user app-data dir. The app must always
+            // start, so a missing data dir falls back to an in-memory database
+            // rather than aborting startup.
+            let db = app
+                .path()
+                .app_data_dir()
+                .ok()
+                .map(|dir| {
+                    let _ = std::fs::create_dir_all(&dir);
+                    Database::open(&dir.join("file_lens.db"))
+                })
+                .unwrap_or_else(Database::in_memory);
             app.manage(db);
             Ok(())
         })
