@@ -62,8 +62,8 @@ function App() {
     <main className="app">
       <header className="app-header">
         <div>
-          <h1>Download Doctor</h1>
-          <p className="tagline">A smarter way to manage your Downloads folder.</p>
+          <h1>File Lens</h1>
+          <p className="tagline">Understand. Organize. Reclaim.</p>
         </div>
         <button type="button" onClick={() => setShowSettings(true)}>
           Settings

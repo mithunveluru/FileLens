@@ -906,24 +906,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "download-doctor"
-version = "0.1.0"
-dependencies = [
- "log",
- "mime_guess",
- "rusqlite",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-log",
- "tauri-plugin-opener",
- "tempfile",
- "trash",
- "walkdir",
-]
-
-[[package]]
 name = "dpi"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1123,6 +1105,24 @@ checksum = "38e2275cc4e4fc009b0669731a1e5ab7ebf11f469eaede2bab9309a5b4d6057f"
 dependencies = [
  "memoffset",
  "rustc_version",
+]
+
+[[package]]
+name = "file-lens"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "mime_guess",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-log",
+ "tauri-plugin-opener",
+ "tempfile",
+ "trash",
+ "walkdir",
 ]
 
 [[package]]

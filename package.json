@@ -1,9 +1,9 @@
 {
-  "name": "download-doctor",
+  "name": "file-lens",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "A smarter way to manage your Downloads folder.",
+  "description": "File Lens — understand, organize, and reclaim your Downloads folder.",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

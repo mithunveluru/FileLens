@@ -28,7 +28,7 @@ struct AppInfo {
 #[tauri::command]
 fn app_info() -> AppInfo {
     AppInfo {
-        name: "Download Doctor".to_string(),
+        name: "File Lens".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
     }
 }
@@ -49,7 +49,7 @@ pub fn run() {
             // Open the database in the per-user app-data dir, creating it on first run.
             let dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&dir)?;
-            let db = Database::open(&dir.join("download_doctor.db"))?;
+            let db = Database::open(&dir.join("file_lens.db"))?;
             app.manage(db);
             Ok(())
         })

@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for working on Download Doctor. This guide keeps the codebase consistent
+Thanks for working on File Lens. This guide keeps the codebase consistent
 and easy to maintain.
 
 ## Setup

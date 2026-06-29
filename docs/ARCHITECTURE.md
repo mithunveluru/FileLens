@@ -1,11 +1,11 @@
 # Architecture
 
-This document is the single source of truth for how Download Doctor is laid out
+This document is the single source of truth for how File Lens is laid out
 and *why*. Update it whenever the structure or a key decision changes.
 
 ## High-level shape
 
-Download Doctor is a [Tauri](https://tauri.app) app: a Rust backend that owns all
+File Lens is a [Tauri](https://tauri.app) app: a Rust backend that owns all
 filesystem, database, and analysis work, and a React frontend that only renders
 and dispatches user intent. The two communicate exclusively over Tauri's typed
 IPC ("commands").
@@ -78,7 +78,7 @@ The backend module set is now complete for the planned phases.
 
 SQLite via `rusqlite` (the `bundled` feature compiles SQLite in — no system
 dependency). The database lives in the per-user app-data dir
-(`download_doctor.db`) and is opened once at startup into a `Mutex<Connection>`
+(`file_lens.db`) and is opened once at startup into a `Mutex<Connection>`
 held in Tauri state.
 
 Schema (`src-tauri/src/database/schema.sql`):

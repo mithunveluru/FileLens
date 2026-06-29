@@ -1,8 +1,8 @@
-# Download Doctor
+# File Lens
 
-> A smarter way to manage your Downloads folder.
+> Understand. Organize. Reclaim.
 
-Download Doctor scans your Downloads folder and gives **intelligent cleanup
+File Lens scans your Downloads folder and gives **intelligent cleanup
 recommendations** — always explaining *why* — while leaving you in full control.
 It never permanently deletes anything automatically; the most it will do, on your
 command, is move a file to the system Recycle Bin.
@@ -80,7 +80,7 @@ All planned phases are complete.
 
 ## Smart Organization
 
-Beyond cleanup, Download Doctor can **organize** your Downloads into category
+Beyond cleanup, File Lens can **organize** your Downloads into category
 folders (Documents, Images, Videos, …) using a **planning-first** flow: it
 proposes a full plan you review and edit, and nothing moves until you execute.
 Every session is recorded and can be undone. Switch between **Clean up** and
