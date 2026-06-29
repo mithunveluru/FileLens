@@ -27,6 +27,8 @@ pub struct Settings {
     /// `"system"`, `"light"`, or `"dark"` — applied by the frontend.
     pub theme: String,
     pub auto_scan_on_startup: bool,
+    /// Start File Lens automatically when the user logs in (OS-level autostart).
+    pub launch_on_startup: bool,
 }
 
 impl Default for Settings {
@@ -39,6 +41,7 @@ impl Default for Settings {
             ignored_extensions: Vec::new(),
             theme: "system".to_string(),
             auto_scan_on_startup: true,
+            launch_on_startup: false,
         }
     }
 }

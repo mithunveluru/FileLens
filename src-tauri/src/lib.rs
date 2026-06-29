@@ -44,6 +44,10 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .manage(ScanState::default())
         .setup(|app| {
             // Open the database in the per-user app-data dir. The app must always
@@ -58,6 +62,13 @@ pub fn run() {
                     Database::open(&dir.join("file_lens.db"))
                 })
                 .unwrap_or_else(Database::in_memory);
+
+            // Reconcile the OS autostart entry with the saved preference.
+            let launch_on_startup = settings::load(&db)
+                .map(|s| s.launch_on_startup)
+                .unwrap_or(false);
+            settings::commands::apply_launch_on_startup(app.handle(), launch_on_startup);
+
             app.manage(db);
             Ok(())
         })

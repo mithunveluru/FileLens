@@ -116,6 +116,15 @@ function SettingsModal({ settings, onSave, onClose }: SettingsModalProps) {
           </label>
         </div>
 
+        <label className="settings-checkbox">
+          <input
+            type="checkbox"
+            checked={form.launchOnStartup}
+            onChange={(e) => set("launchOnStartup", e.currentTarget.checked)}
+          />
+          Launch File Lens when I log in
+        </label>
+
         <div className="modal-actions">
           <button type="button" onClick={onClose}>
             Cancel

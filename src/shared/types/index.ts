@@ -150,6 +150,7 @@ export interface Settings {
   ignoredExtensions: string[];
   theme: "system" | "light" | "dark";
   autoScanOnStartup: boolean;
+  launchOnStartup: boolean;
 }
 
 /** A persisted past scan run. Mirrors the Rust `ScanRecord` struct. */
