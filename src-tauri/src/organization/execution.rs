@@ -4,9 +4,17 @@
 //! collecting results for reporting and history.
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use super::{conflict, ActionStatus, OrganizationAction};
+
+/// A path is a safe descendant of `root` only if it is lexically under it *and*
+/// contains no `..` component. The `..` guard matters because the plan crosses
+/// an untrusted IPC boundary: `Path::starts_with` alone would accept
+/// `<root>/../escape`, which resolves outside the Downloads folder.
+fn is_safe_descendant(root: &Path, path: &Path) -> bool {
+    path.starts_with(root) && !path.components().any(|c| c == Component::ParentDir)
+}
 
 /// A move that completed successfully — enough to reverse it later (undo).
 pub struct ExecutedMove {
@@ -61,7 +69,7 @@ fn apply(root: &Path, action: &OrganizationAction) -> Result<Option<String>, Str
     let source = Path::new(&action.source);
     let intended = PathBuf::from(&action.destination);
 
-    if !source.starts_with(root) || !intended.starts_with(root) {
+    if !is_safe_descendant(root, source) || !is_safe_descendant(root, &intended) {
         return Err("refusing to move outside the Downloads folder".into());
     }
     if !source.exists() {
@@ -98,7 +106,7 @@ pub fn undo(root: &Path, moves: &[(String, String)]) -> UndoReport {
         let src = Path::new(source);
         let dst = Path::new(destination);
 
-        let outcome = if !src.starts_with(root) || !dst.starts_with(root) {
+        let outcome = if !is_safe_descendant(root, src) || !is_safe_descendant(root, dst) {
             Err("refusing to move outside the Downloads folder".to_string())
         } else if !dst.exists() {
             Err("the moved file no longer exists".to_string())
@@ -248,6 +256,25 @@ mod tests {
 
         assert_eq!(report.failed, 1);
         assert!(source.exists());
+    }
+
+    #[test]
+    fn refuses_directory_traversal_destination() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let source = root.join("a.txt");
+        fs::write(&source, b"x").unwrap();
+        // Lexically "under" root via starts_with, but escapes through "..".
+        let escaping = root.join("..").join("escaped.txt");
+
+        let report = execute(
+            root,
+            &[action(source.to_str().unwrap(), escaping.to_str().unwrap())],
+        );
+
+        assert_eq!(report.failed, 1);
+        assert!(source.exists());
+        assert!(!escaping.exists());
     }
 
     #[test]

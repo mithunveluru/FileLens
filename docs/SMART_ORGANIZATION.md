@@ -51,8 +51,9 @@ existing `FileEntry` serves as the file-metadata model — it is not duplicated.
 ## Safety guarantees
 
 - Execution **re-resolves the Downloads root server-side** and refuses any
-  source or destination outside it, so a tampered `plan.root` cannot redirect
-  moves.
+  source or destination outside it. Because the plan crosses an untrusted IPC
+  boundary, paths are rejected both when they fall outside the root and when they
+  contain a `..` component, so a crafted destination cannot escape via traversal.
 - Conflicts default to **Keep Both** (numbered name) — execution never silently
   overwrites unless the user chooses Replace.
 - A per-file failure (missing source, permission error, cross-filesystem move)
