@@ -88,10 +88,17 @@ File Lens addresses this with three ideas:
   nothing moves until you execute it.
 - Every executed session is recorded and can be undone.
 
+**Desktop experience**
+- On launch, the previously scanned results are shown immediately from the local
+  database while a fresh scan runs in the background; the dashboard refreshes
+  when it completes. Scanning is asynchronous and never blocks the window.
+
 **Settings**
 - Configure the Downloads folder, age and large-file thresholds, ignored folders
-  and extensions, theme (system, light, or dark), and auto-scan on startup. All
-  settings are persisted.
+  and extensions, and theme (system, light, or dark).
+- Startup preferences: scan automatically on open (on by default), remember the
+  last scanned location, and launch File Lens at login (OS-level autostart).
+- All settings are persisted.
 
 > Duplicate detection currently uses a metadata heuristic (files that share an
 > exact, non-zero size) rather than content hashing. See
@@ -232,6 +239,12 @@ Produce an optimized, distributable build for your platform:
 pnpm tauri build
 ```
 
+This generates native installers (`.msi`/`.exe` on Windows, `.dmg`/`.app` on
+macOS, `.deb`/`.AppImage` on Linux). Installing creates the platform's standard
+application entry — a Start Menu entry on Windows and an application-menu entry
+on Linux/macOS — using the File Lens name and icon. Users can also opt in to
+launching File Lens at login from Settings.
+
 The frontend alone can be built or previewed without the desktop shell:
 
 ```bash
@@ -340,6 +353,7 @@ Realistic, not-yet-implemented enhancements being considered:
   keys off dotfile names).
 - An in-app About section beyond the footer version line.
 - Progress reporting for very large organization batches.
+- System-tray support with minimize-to-tray (adds a Linux runtime dependency).
 - A continuous-integration workflow running the full lint, type-check, and test
   suite.
 

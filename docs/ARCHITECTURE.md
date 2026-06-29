@@ -162,6 +162,24 @@ startup, re-analyze after a scan completes or settings change, and apply the
 theme. `ScanPanel` and `Dashboard` receive their controllers as props and stay
 presentational.
 
+## Startup and desktop integration
+
+Startup logic lives in composition points, not in presentational components:
+
+- The Rust `setup` hook opens the database (recreating it or falling back to
+  in-memory if it is unusable, so the app always starts) and reconciles the OS
+  autostart entry with the saved `launch_on_startup` preference.
+- `App` shows the cached analysis immediately on mount, then — if
+  `auto_scan_on_startup` is enabled — starts a background scan and re-runs the
+  analysis when it completes. The scan command runs the walk on a blocking task
+  off the async runtime, so the window stays responsive.
+- Root resolution (`settings::resolve_root`) prefers the configured folder, then
+  the remembered last-scan location, then the OS Downloads folder. The chosen
+  root is persisted after each scan when "remember last scan location" is on.
+
+Installer metadata and icons in `tauri.conf.json` drive the native installers and
+the OS application entries; `tauri-plugin-autostart` provides login autostart.
+
 ## Polish (cross-cutting)
 
 - **Theming:** a small set of CSS custom properties (`--bg`, `--fg`,
