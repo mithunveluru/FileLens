@@ -1,6 +1,5 @@
 const UNITS = ["B", "KB", "MB", "GB", "TB"] as const;
 
-/** Formats a byte count as a human-readable size, e.g. `1536` -> `"1.5 KB"`. */
 export function formatBytes(bytes: number): string {
   let size = bytes;
   let unit = 0;

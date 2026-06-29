@@ -7,7 +7,6 @@ interface ScanPanelProps {
   scan: ScanController;
 }
 
-/** Triggers a scan, shows live progress, and summarises the inventory. */
 function ScanPanel({ scan }: ScanPanelProps) {
   const { status, progress, elapsedSeconds, result, error, start, cancel } = scan;
   const scanning = status === "scanning";

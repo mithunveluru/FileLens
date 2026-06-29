@@ -3,11 +3,9 @@ import type { PlanSummary } from "@/shared/types";
 
 interface PlanSummaryCardsProps {
   summary: PlanSummary;
-  /** Number of actions currently set to run. */
   accepted: number;
 }
 
-/** Headline stats for the proposed plan. */
 function PlanSummaryCards({ summary, accepted }: PlanSummaryCardsProps) {
   return (
     <div className="org-summary">

@@ -17,7 +17,6 @@ use serde::Serialize;
 use settings::commands::{get_settings, save_settings};
 use tauri::Manager;
 
-/// Application identity returned to the frontend via the `app_info` command.
 #[derive(Serialize)]
 struct AppInfo {
     name: String,
@@ -36,8 +35,7 @@ fn app_info() -> AppInfo {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        // Unified logging: frontend (tauri-plugin-log) and backend logs share
-        // the same sinks. `LevelFilter::Info` is the floor for shipped builds.
+        // Frontend and backend logs share the same sinks.
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(log::LevelFilter::Info)
@@ -50,9 +48,7 @@ pub fn run() {
         ))
         .manage(ScanState::default())
         .setup(|app| {
-            // Open the database in the per-user app-data dir. The app must always
-            // start, so a missing data dir falls back to an in-memory database
-            // rather than aborting startup.
+            // A missing data dir falls back to in-memory so startup never aborts.
             let db = app
                 .path()
                 .app_data_dir()

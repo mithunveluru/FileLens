@@ -1,12 +1,7 @@
 import { useEffect } from "react";
 import type { Settings } from "@/shared/types";
 
-/**
- * Applies the chosen theme to the document. "system" defers to the OS via the
- * `prefers-color-scheme` rules in global.css; "light"/"dark" force it through a
- * `data-theme` attribute and the `color-scheme` property (which also themes
- * native form controls and scrollbars).
- */
+// "system" defers to prefers-color-scheme; "light"/"dark" force it via data-theme and color-scheme.
 export function useTheme(theme: Settings["theme"]): void {
   useEffect(() => {
     const root = document.documentElement;

@@ -1,11 +1,9 @@
 import { useScanHistory } from "@/features/scan/useScanHistory";
 
 interface ScanHistoryProps {
-  /** Changing this refetches the list (e.g. the latest scan result). */
   refreshToken: unknown;
 }
 
-/** Shows recent persisted scans, newest first. */
 function ScanHistory({ refreshToken }: ScanHistoryProps) {
   const scans = useScanHistory(refreshToken);
 

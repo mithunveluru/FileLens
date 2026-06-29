@@ -24,11 +24,7 @@ export interface OrganizationPlanController {
   setCategory: (index: number, kind: FileKind) => void;
 }
 
-/**
- * Holds an editable organization plan and runs execution. The plan comes from
- * the backend read-only; the user's edits (skip, conflict strategy, destination
- * category) are applied client-side until they execute.
- */
+// The plan is loaded read-only; the user's edits are applied client-side until execution.
 export function useOrganizationPlan(): OrganizationPlanController {
   const [status, setStatus] = useState<PlanStatus>("idle");
   const [plan, setPlan] = useState<OrganizationPlan | null>(null);

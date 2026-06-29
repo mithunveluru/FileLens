@@ -1,6 +1,4 @@
-//! User-initiated cleanup actions. Nothing here deletes permanently: trashing
-//! moves a file to the OS Recycle Bin (recoverable from there), and ignoring is
-//! reversible. Trashing is restricted to files inside the Downloads folder.
+//! User cleanup actions; trashing moves files to the OS Recycle Bin and stays within Downloads.
 
 use std::path::Path;
 
@@ -11,12 +9,11 @@ use tauri_plugin_opener::OpenerExt;
 use crate::database::Database;
 use crate::filesystem::FileEntry;
 
-/// True if `path` lives inside `root`. Both must be absolute (canonicalized).
+// Both paths must already be absolute (canonicalized) for this to be safe.
 fn is_within(root: &Path, path: &Path) -> bool {
     path.starts_with(root)
 }
 
-/// Moves a Downloads file to the OS Recycle Bin and drops it from the inventory.
 #[tauri::command]
 pub fn trash_file(app: AppHandle, db: State<'_, Database>, path: String) -> Result<(), String> {
     let root = app
@@ -43,7 +40,6 @@ pub fn trash_file(app: AppHandle, db: State<'_, Database>, path: String) -> Resu
     Ok(())
 }
 
-/// Opens the system file manager with the file selected.
 #[tauri::command]
 pub fn reveal_file(app: AppHandle, path: String) -> Result<(), String> {
     app.opener()
@@ -51,19 +47,16 @@ pub fn reveal_file(app: AppHandle, path: String) -> Result<(), String> {
         .map_err(|err| err.to_string())
 }
 
-/// Excludes a path from future analysis (reversible via [`unignore_path`]).
 #[tauri::command]
 pub fn ignore_path(db: State<'_, Database>, path: String) -> Result<(), String> {
     db.add_ignored(&path).map_err(|err| err.to_string())
 }
 
-/// Restores a previously ignored path so it is analyzed again.
 #[tauri::command]
 pub fn unignore_path(db: State<'_, Database>, path: String) -> Result<(), String> {
     db.remove_ignored(&path).map_err(|err| err.to_string())
 }
 
-/// Returns full metadata for a file, for the preview panel.
 #[tauri::command]
 pub fn file_info(db: State<'_, Database>, path: String) -> Result<Option<FileEntry>, String> {
     db.get_file(&path).map_err(|err| err.to_string())

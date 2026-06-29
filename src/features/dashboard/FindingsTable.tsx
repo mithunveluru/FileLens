@@ -14,7 +14,6 @@ function formatDate(modifiedMs: number | null): string {
   return modifiedMs === null ? "—" : new Date(modifiedMs).toLocaleDateString();
 }
 
-/** Presentational table of findings with per-row cleanup actions. */
 function FindingsTable({ rows, onInfo, onReveal, onIgnore, onTrash }: FindingsTableProps) {
   return (
     <table className="findings-table">

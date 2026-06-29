@@ -1,14 +1,11 @@
-//! Low-level filesystem access: turning a single file on disk into a typed
-//! [`FileEntry`]. Knows nothing about walking directories — that is the
-//! `scanning` module's job.
+//! Turns a single file on disk into typed metadata.
 
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
-/// Metadata for one file, as sent to the frontend. Field names are serialized
-/// as camelCase to match the TypeScript `FileEntry` interface.
+// camelCase to match the TypeScript FileEntry.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileEntry {
@@ -22,9 +19,7 @@ pub struct FileEntry {
     pub is_hidden: bool,
 }
 
-/// Builds a [`FileEntry`] from a regular file's `path` and its already-read
-/// `metadata`. Returns `None` only if the path has no file name. Callers must
-/// skip directories and symlinks before calling this.
+// Caller must skip directories and symlinks first.
 pub fn read_entry(path: &Path, metadata: &std::fs::Metadata) -> Option<FileEntry> {
     let name = path.file_name()?.to_string_lossy().into_owned();
     let extension = path
@@ -48,8 +43,6 @@ pub fn read_entry(path: &Path, metadata: &std::fs::Metadata) -> Option<FileEntry
     })
 }
 
-/// Converts a `SystemTime` to Unix epoch milliseconds. Returns `None` for times
-/// before the epoch (which JS `Date` cannot represent here anyway).
 fn system_time_to_millis(time: SystemTime) -> Option<i64> {
     time.duration_since(UNIX_EPOCH)
         .ok()

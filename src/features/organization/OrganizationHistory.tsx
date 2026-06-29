@@ -5,13 +5,10 @@ import { logger } from "@/shared/logging/logger";
 import type { OrganizationSessionRecord } from "@/shared/types";
 
 interface OrganizationHistoryProps {
-  /** Changing this refetches the list (e.g. after a new execution). */
   refreshToken: unknown;
-  /** Called after an undo so the caller can rebuild the plan. */
   onUndone: () => void;
 }
 
-/** Lists past organization sessions and offers to undo each one. */
 function OrganizationHistory({ refreshToken, onUndone }: OrganizationHistoryProps) {
   const [sessions, setSessions] = useState<OrganizationSessionRecord[]>([]);
   const [reload, setReload] = useState(0);

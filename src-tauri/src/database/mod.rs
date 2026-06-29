@@ -16,7 +16,6 @@ pub struct Database {
     conn: Mutex<Connection>,
 }
 
-/// One past organization session, for the history view. Serialized as camelCase.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrganizationSessionRecord {
@@ -27,7 +26,6 @@ pub struct OrganizationSessionRecord {
     pub undone: bool,
 }
 
-/// One past scan run, for the history view. Serialized as camelCase.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanRecord {
@@ -41,10 +39,8 @@ pub struct ScanRecord {
 }
 
 impl Database {
-    /// Opens the database, creating it on first run. If the existing file is
-    /// unusable (e.g. corrupted), it is set aside and recreated; if that also
-    /// fails, an in-memory database is used. The app must always start, so this
-    /// never returns an error.
+    // A corrupt file is set aside and recreated; an in-memory database is the
+    // last resort, so startup never fails on the database.
     pub fn open(path: &Path) -> Self {
         Self::try_open(path).unwrap_or_else(|err| {
             log::warn!("database at {path:?} is unusable ({err}); recreating it");
@@ -53,7 +49,6 @@ impl Database {
         })
     }
 
-    /// An ephemeral database, used as a last-resort fallback and in tests.
     pub fn in_memory() -> Self {
         Self::try_from_connection(Connection::open_in_memory().expect("open in-memory database"))
             .expect("apply schema to in-memory database")
@@ -70,10 +65,8 @@ impl Database {
         })
     }
 
-    /// Persists a scan and its files in a single transaction, returning the new
-    /// scan id. Files are upserted by path (no duplicates); a *complete* scan
-    /// also prunes files it did not see, since those are gone from disk. A
-    /// cancelled scan is partial, so it never prunes.
+    // Upserts files by path. A complete scan prunes files it did not see; a
+    // cancelled scan is partial and never prunes.
     pub fn persist_scan(
         &self,
         root: &str,
@@ -139,7 +132,6 @@ impl Database {
         Ok(scan_id)
     }
 
-    /// Returns the full current file inventory, for the analysis engine.
     pub fn list_files(&self) -> rusqlite::Result<Vec<FileEntry>> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         let mut stmt = conn.prepare(
@@ -161,7 +153,6 @@ impl Database {
         rows.collect()
     }
 
-    /// Returns a single file by path, if it is in the inventory.
     pub fn get_file(&self, path: &str) -> rusqlite::Result<Option<FileEntry>> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         conn.query_row(
@@ -184,14 +175,12 @@ impl Database {
         .optional()
     }
 
-    /// Removes a file from the inventory (e.g. after it was moved to the trash).
     pub fn remove_file(&self, path: &str) -> rusqlite::Result<()> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         conn.execute("DELETE FROM files WHERE path = ?1", [path])?;
         Ok(())
     }
 
-    /// Reads a raw setting value by key.
     pub fn get_setting(&self, key: &str) -> rusqlite::Result<Option<String>> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         conn.query_row("SELECT value FROM settings WHERE key = ?1", [key], |row| {
@@ -200,7 +189,6 @@ impl Database {
         .optional()
     }
 
-    /// Writes a raw setting value, replacing any existing one.
     pub fn set_setting(&self, key: &str, value: &str) -> rusqlite::Result<()> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         conn.execute(
@@ -211,7 +199,6 @@ impl Database {
         Ok(())
     }
 
-    /// Adds a path to the ignore list (no-op if already present).
     pub fn add_ignored(&self, path: &str) -> rusqlite::Result<()> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         conn.execute(
@@ -221,14 +208,12 @@ impl Database {
         Ok(())
     }
 
-    /// Removes a path from the ignore list.
     pub fn remove_ignored(&self, path: &str) -> rusqlite::Result<()> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         conn.execute("DELETE FROM ignored_paths WHERE path = ?1", [path])?;
         Ok(())
     }
 
-    /// Returns every ignored path.
     pub fn ignored_paths(&self) -> rusqlite::Result<Vec<String>> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         let mut stmt = conn.prepare("SELECT path FROM ignored_paths")?;
@@ -236,8 +221,6 @@ impl Database {
         rows.collect()
     }
 
-    /// Records an executed organization session and its moves in one
-    /// transaction, returning the new session id.
     pub fn record_organization_session(
         &self,
         root: &str,
@@ -262,7 +245,6 @@ impl Database {
         Ok(session_id)
     }
 
-    /// Returns recent organization sessions, newest first.
     pub fn organization_history(
         &self,
         limit: i64,
@@ -284,7 +266,6 @@ impl Database {
         rows.collect()
     }
 
-    /// Returns the (source, destination) moves recorded for a session.
     pub fn organization_session_moves(
         &self,
         session_id: i64,
@@ -296,7 +277,6 @@ impl Database {
         rows.collect()
     }
 
-    /// Marks a session as undone.
     pub fn mark_session_undone(&self, session_id: i64) -> rusqlite::Result<()> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         conn.execute(
@@ -306,7 +286,6 @@ impl Database {
         Ok(())
     }
 
-    /// Returns the most recent scans, newest first.
     pub fn scan_history(&self, limit: i64) -> rusqlite::Result<Vec<ScanRecord>> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         let mut stmt = conn.prepare(
@@ -328,7 +307,6 @@ impl Database {
     }
 }
 
-/// Current time as Unix epoch milliseconds.
 pub fn now_ms() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)

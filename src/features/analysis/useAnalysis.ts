@@ -12,7 +12,6 @@ export interface AnalysisController {
   run: () => Promise<void>;
 }
 
-/** Runs the analysis engine on mount (and on demand) and exposes the report. */
 export function useAnalysis(): AnalysisController {
   const [status, setStatus] = useState<AnalysisStatus>("idle");
   const [report, setReport] = useState<AnalysisReport | null>(null);

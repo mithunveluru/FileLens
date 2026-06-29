@@ -1,18 +1,15 @@
-//! Centralized file classification. Maps a file to a [`FileKind`] by extension
-//! first, then by MIME type. This is the single source of classification rules.
+//! Maps a file to a category by extension, then MIME. Single source of classification rules.
 
 use super::FileKind;
 use crate::filesystem::FileEntry;
 
-/// The category a file was classified into, with a human-readable reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassificationResult {
     pub kind: FileKind,
     pub reason: String,
 }
 
-/// Extension tables, checked in order. Extensions are stored lowercase by the
-/// scanner, so comparisons are exact.
+// Extensions are stored lowercase by the scanner, so comparisons are exact.
 const EXTENSION_TABLE: &[(FileKind, &[&str])] = &[
     (
         FileKind::Documents,
@@ -52,7 +49,6 @@ const EXTENSION_TABLE: &[(FileKind, &[&str])] = &[
     ),
 ];
 
-/// Classifies a file. Extension wins; MIME is the fallback; otherwise `Other`.
 pub fn classify(file: &FileEntry) -> ClassificationResult {
     if let Some(ext) = file.extension.as_deref() {
         if let Some(kind) = kind_for_extension(ext) {

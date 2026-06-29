@@ -20,11 +20,6 @@ const INITIAL_VIEW: ViewOptions = {
   pageSize: 50,
 };
 
-/**
- * The cleanup dashboard: headline stats plus a searchable, filterable, sortable,
- * paginated table of recommendations, with per-row cleanup actions. Handles
- * loading, error, and empty states.
- */
 interface DashboardProps {
   analysis: AnalysisController;
 }

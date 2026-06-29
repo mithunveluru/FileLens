@@ -7,10 +7,6 @@ import PlanTable from "@/features/organization/PlanTable";
 import { useOrganizationPlan } from "@/features/organization/useOrganizationPlan";
 import "./Organization.css";
 
-/**
- * Smart Organization preview. Builds a proposed plan (read-only), lets the user
- * review and adjust each move, then executes only after explicit confirmation.
- */
 function OrganizationView() {
   const {
     status,

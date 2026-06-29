@@ -1,7 +1,6 @@
 import { basename } from "@/shared/format/path";
 import type { FileKind } from "@/shared/types";
 
-/** Display labels and destination folder names for each category. */
 export const KIND_FOLDERS: Record<FileKind, string> = {
   documents: "Documents",
   images: "Images",
@@ -24,10 +23,6 @@ export const KIND_ORDER: FileKind[] = [
   "other",
 ];
 
-/**
- * Recomputes a destination when the user changes a file's target category,
- * keeping it inside the same Downloads root and preserving the OS separator.
- */
 export function recomputeDestination(root: string, kind: FileKind, source: string): string {
   const separator = root.includes("\\") ? "\\" : "/";
   const trimmedRoot = root.replace(/[\\/]+$/, "");

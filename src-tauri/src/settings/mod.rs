@@ -1,6 +1,4 @@
-//! User settings, persisted as a single JSON document in the `settings` table.
-//! `#[serde(default)]` makes old stored documents forward-compatible: new fields
-//! fall back to their defaults instead of failing to parse.
+//! User settings as one JSON document; serde defaults keep it forward-compatible.
 
 pub mod commands;
 
@@ -15,25 +13,22 @@ use crate::filesystem::FileEntry;
 
 const SETTINGS_KEY: &str = "app";
 
-/// Database key under which the most recently scanned folder is remembered. Kept
-/// separate from the user settings document so saving settings never clobbers it.
+// Separate key so saving settings never clobbers it.
 pub const LAST_SCAN_LOCATION_KEY: &str = "last_scan_location";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
-    /// Override for the scan root; `None`/empty means the OS Downloads folder.
+    /// None/empty means the OS Downloads folder.
     pub downloads_folder: Option<String>,
     pub age_threshold_days: i64,
     pub large_file_min_mb: u64,
     pub ignored_folders: Vec<String>,
     pub ignored_extensions: Vec<String>,
-    /// `"system"`, `"light"`, or `"dark"` — applied by the frontend.
+    /// "system", "light", or "dark".
     pub theme: String,
     pub auto_scan_on_startup: bool,
-    /// Start File Lens automatically when the user logs in (OS-level autostart).
     pub launch_on_startup: bool,
-    /// Reuse the most recently scanned folder when no explicit folder is set.
     pub remember_last_scan_location: bool,
 }
 
@@ -54,7 +49,6 @@ impl Default for Settings {
 }
 
 impl Settings {
-    /// Builds the analysis thresholds from the user's settings.
     pub fn analysis_config(&self) -> AnalysisConfig {
         AnalysisConfig {
             large_file_min_bytes: self.large_file_min_mb.saturating_mul(1024 * 1024),
@@ -62,8 +56,6 @@ impl Settings {
         }
     }
 
-    /// True if a file should be excluded from analysis: explicitly ignored, an
-    /// ignored extension, or inside an ignored folder.
     pub fn is_excluded(&self, file: &FileEntry, ignored_paths: &HashSet<String>) -> bool {
         if ignored_paths.contains(&file.path) {
             return true;
@@ -85,9 +77,7 @@ impl Settings {
     }
 }
 
-/// Resolves the scan/organization root, in order of preference: the configured
-/// folder override, then the remembered last-scan location (when that preference
-/// is enabled and the folder still exists), then the OS Downloads folder.
+// Preference order: configured override, remembered location, OS Downloads.
 pub fn resolve_root(
     settings: &Settings,
     remembered: Option<&str>,
@@ -119,7 +109,6 @@ pub fn resolve_root(
     Ok(os_default)
 }
 
-/// Loads settings, falling back to defaults if absent or unparseable.
 pub fn load(db: &Database) -> rusqlite::Result<Settings> {
     Ok(match db.get_setting(SETTINGS_KEY)? {
         Some(json) => serde_json::from_str(&json).unwrap_or_default(),
@@ -127,7 +116,6 @@ pub fn load(db: &Database) -> rusqlite::Result<Settings> {
     })
 }
 
-/// Persists settings as JSON.
 pub fn save(db: &Database, settings: &Settings) -> Result<(), String> {
     let json = serde_json::to_string(settings).map_err(|err| err.to_string())?;
     db.set_setting(SETTINGS_KEY, &json)

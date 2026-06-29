@@ -5,7 +5,6 @@ interface OverviewCardsProps {
   summary: AnalysisSummary;
 }
 
-/** The three headline stats: total files, disk usage, reclaimable space. */
 function OverviewCards({ summary }: OverviewCardsProps) {
   const cards = [
     { label: "Total files", value: summary.totalFiles.toLocaleString() },

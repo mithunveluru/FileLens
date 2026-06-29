@@ -1,28 +1,21 @@
-//! Applies an approved plan to the filesystem. This is the only organization
-//! module that touches disk. It validates every move stays inside the Downloads
-//! root, resolves conflicts, and continues past recoverable per-file errors,
-//! collecting results for reporting and history.
+//! Applies an approved plan to disk; the only organization module that touches it.
 
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 use super::{conflict, ActionStatus, OrganizationAction};
 
-/// A path is a safe descendant of `root` only if it is lexically under it *and*
-/// contains no `..` component. The `..` guard matters because the plan crosses
-/// an untrusted IPC boundary: `Path::starts_with` alone would accept
-/// `<root>/../escape`, which resolves outside the Downloads folder.
+// The `..` guard matters because the plan crosses an untrusted IPC boundary:
+// `Path::starts_with` alone would accept `<root>/../escape`.
 fn is_safe_descendant(root: &Path, path: &Path) -> bool {
     path.starts_with(root) && !path.components().any(|c| c == Component::ParentDir)
 }
 
-/// A move that completed successfully — enough to reverse it later (undo).
 pub struct ExecutedMove {
     pub source: String,
     pub destination: String,
 }
 
-/// The result of executing a plan.
 pub struct ExecutionReport {
     pub moves: Vec<ExecutedMove>,
     pub skipped: usize,
@@ -30,8 +23,7 @@ pub struct ExecutionReport {
     pub errors: Vec<String>,
 }
 
-/// Executes the accepted actions, keeping every move inside `root`. A failure on
-/// one file is recorded and the rest continue.
+// A failure on one file is recorded; the rest continue.
 pub fn execute(root: &Path, actions: &[OrganizationAction]) -> ExecutionReport {
     let mut report = ExecutionReport {
         moves: Vec::new(),
@@ -63,8 +55,6 @@ pub fn execute(root: &Path, actions: &[OrganizationAction]) -> ExecutionReport {
     report
 }
 
-/// Performs one move. Returns the final destination, or `None` if a conflict
-/// strategy chose to skip it.
 fn apply(root: &Path, action: &OrganizationAction) -> Result<Option<String>, String> {
     let source = Path::new(&action.source);
     let intended = PathBuf::from(&action.destination);
@@ -86,15 +76,13 @@ fn apply(root: &Path, action: &OrganizationAction) -> Result<Option<String>, Str
     Ok(Some(final_dest.to_string_lossy().into_owned()))
 }
 
-/// The result of undoing a session.
 pub struct UndoReport {
     pub restored: usize,
     pub failed: usize,
     pub errors: Vec<String>,
 }
 
-/// Reverses recorded moves (destination back to source). Never overwrites a
-/// file that has since reappeared at the original location.
+// Never overwrites a file that has reappeared at the original location.
 pub fn undo(root: &Path, moves: &[(String, String)]) -> UndoReport {
     let mut report = UndoReport {
         restored: 0,

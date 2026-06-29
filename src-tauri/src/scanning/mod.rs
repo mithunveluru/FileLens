@@ -1,6 +1,4 @@
-//! Recursively walks a folder and collects file metadata into an inventory.
-//! Pure of Tauri: the [`scan`] function takes a cancel flag and a progress
-//! callback, so it is fully unit-testable. IPC wiring lives in [`commands`].
+//! Recursively walks a folder into a file inventory.
 
 pub mod commands;
 
@@ -13,7 +11,6 @@ use walkdir::WalkDir;
 
 use crate::filesystem::{read_entry, FileEntry};
 
-/// Result of a scan. Serialized as camelCase for the frontend.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanOutcome {
@@ -22,15 +19,11 @@ pub struct ScanOutcome {
     pub cancelled: bool,
 }
 
-/// How often (in files) to report progress, to avoid flooding the IPC bridge.
+// Throttled to avoid flooding the IPC bridge.
 const PROGRESS_INTERVAL: usize = 100;
 
-/// Recursively walks `root`, collecting metadata for every regular file.
-///
-/// - Symlinks are never followed (no infinite loops, no escaping the folder).
-/// - Unreadable entries (e.g. permission denied) are logged and skipped, never
-///   fatal.
-/// - The walk stops early, without error, as soon as `cancel` is set.
+// Symlinks are never followed; unreadable entries are logged and skipped; a set
+// `cancel` flag stops the walk early without error.
 pub fn scan(root: &Path, cancel: &AtomicBool, mut on_progress: impl FnMut(usize)) -> ScanOutcome {
     let mut files = Vec::new();
     let mut error_count = 0usize;

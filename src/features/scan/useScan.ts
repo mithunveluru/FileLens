@@ -4,16 +4,13 @@ import { cancelScan, scanDownloads } from "@/shared/ipc/commands";
 import { logger } from "@/shared/logging/logger";
 import type { ScanOutcome } from "@/shared/types";
 
-/** Backend event carrying the running file count during a scan. */
 const PROGRESS_EVENT = "scan:progress";
 
 export type ScanStatus = "idle" | "scanning" | "done" | "error";
 
 export interface ScanController {
   status: ScanStatus;
-  /** Files counted so far (during a scan) or in total (when done). */
   progress: number;
-  /** Whole seconds since the current scan started. */
   elapsedSeconds: number;
   result: ScanOutcome | null;
   error: string | null;
@@ -21,11 +18,6 @@ export interface ScanController {
   cancel: () => void;
 }
 
-/**
- * Owns the lifecycle of a Downloads scan: starting it, streaming progress from
- * the backend, and exposing the final inventory. Keeps all scan state in one
- * place so UI components stay presentational.
- */
 export function useScan(): ScanController {
   const [status, setStatus] = useState<ScanStatus>("idle");
   const [progress, setProgress] = useState(0);

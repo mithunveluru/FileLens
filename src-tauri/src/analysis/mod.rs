@@ -1,10 +1,4 @@
-//! Read-only analysis engine. Takes the file inventory and produces
-//! [`Finding`]s explaining *why* each file is worth reviewing, plus an
-//! [`AnalysisSummary`] of totals. It never reads file contents or modifies
-//! anything.
-//!
-//! Rules are plain functions in the [`RULES`] registry. Adding a rule is: write
-//! a `fn(&AnalysisInput) -> Vec<Finding>` and add it to the array — nothing else.
+//! Read-only rule engine: flags files and computes summary totals.
 
 pub mod commands;
 
@@ -14,7 +8,6 @@ use serde::Serialize;
 
 use crate::filesystem::FileEntry;
 
-/// Why a file was flagged. Serialized as camelCase (e.g. `"largeFile"`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Category {
@@ -33,7 +26,6 @@ const ALL_CATEGORIES: [Category; 5] = [
     Category::Duplicate,
 ];
 
-/// A single recommendation about one file, with a human-readable reason.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Finding {
@@ -44,7 +36,6 @@ pub struct Finding {
     pub modified_ms: Option<i64>,
 }
 
-/// Per-category totals for the dashboard.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CategorySummary {
@@ -53,7 +44,6 @@ pub struct CategorySummary {
     pub bytes: u64,
 }
 
-/// Inventory-wide totals.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnalysisSummary {
@@ -63,14 +53,12 @@ pub struct AnalysisSummary {
     pub categories: Vec<CategorySummary>,
 }
 
-/// The full analysis result returned to the frontend.
 #[derive(Debug, Clone, Serialize)]
 pub struct AnalysisReport {
     pub summary: AnalysisSummary,
     pub findings: Vec<Finding>,
 }
 
-/// Thresholds the rules use, built from the user's settings.
 #[derive(Debug, Clone)]
 pub struct AnalysisConfig {
     pub large_file_min_bytes: u64,
@@ -86,7 +74,6 @@ impl Default for AnalysisConfig {
     }
 }
 
-/// Everything a rule needs to run.
 pub struct AnalysisInput<'a> {
     pub files: &'a [FileEntry],
     pub config: &'a AnalysisConfig,
@@ -95,7 +82,7 @@ pub struct AnalysisInput<'a> {
 
 type Rule = fn(&AnalysisInput) -> Vec<Finding>;
 
-/// The active rule set. Add a rule by appending its function here.
+// Add a rule by appending its function here.
 const RULES: &[Rule] = &[
     large_files,
     old_files,
@@ -104,12 +91,10 @@ const RULES: &[Rule] = &[
     duplicates,
 ];
 
-/// Runs every rule and returns all findings.
 pub fn analyze(input: &AnalysisInput) -> Vec<Finding> {
     RULES.iter().copied().flat_map(|rule| rule(input)).collect()
 }
 
-/// Runs the rules and computes inventory-wide totals.
 pub fn report(input: &AnalysisInput) -> AnalysisReport {
     let findings = analyze(input);
     let summary = summarize(input, &findings);
@@ -141,9 +126,7 @@ fn summarize(input: &AnalysisInput, findings: &[Finding]) -> AnalysisSummary {
     }
 }
 
-/// Bytes recoverable if the user acts on every recommendation. Each flagged
-/// file counts once (even if multiple rules flagged it); for each duplicate
-/// group we keep one copy, so one file's size per group is not reclaimable.
+// Each flagged file counts once, and one copy per duplicate group is kept.
 fn reclaimable(input: &AnalysisInput, findings: &[Finding]) -> u64 {
     let mut flagged: HashMap<&str, u64> = HashMap::new();
     for f in findings {
@@ -235,8 +218,6 @@ fn flag_by_extension(
         .collect()
 }
 
-/// Flags files that share an exact (non-zero) size as likely duplicates.
-//
 // Size matching is a metadata-only heuristic: no false negatives (identical
 // content implies identical size) but possible false positives. Content hashing
 // during scanning would make this exact.

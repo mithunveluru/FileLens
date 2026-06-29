@@ -1,6 +1,4 @@
-//! Builds an [`OrganizationPlan`] from the file inventory. Pure and
-//! deterministic: filesystem existence is injected as an `exists` predicate, so
-//! the planner is fully unit-testable and never touches disk itself.
+//! Builds an organization plan. Pure: filesystem existence is injected as `exists`.
 
 use std::path::Path;
 
@@ -10,12 +8,7 @@ use super::{
 };
 use crate::filesystem::FileEntry;
 
-/// Proposes a move for each top-level Downloads file into its category folder.
-///
-/// Only files directly inside `root` are organized — nested folders (including
-/// already-organized category folders) are left untouched, so existing
-/// structure is never disturbed. `exists` reports whether a destination already
-/// exists, which marks the action as a conflict for the preview.
+// Only files directly inside `root` are organized; nested folders are left untouched.
 pub fn build_plan(
     files: &[FileEntry],
     root: &Path,

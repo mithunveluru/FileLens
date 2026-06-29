@@ -10,7 +10,6 @@ interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
-/** A small modal confirmation dialog for destructive or irreversible actions. */
 function ConfirmDialog({
   title,
   message,

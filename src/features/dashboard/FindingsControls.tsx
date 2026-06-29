@@ -19,7 +19,6 @@ const SORT_LABELS: Record<SortKey, string> = {
   oldest: "Oldest first",
 };
 
-/** Search box, category filter, and sort selector for the findings table. */
 function FindingsControls({ options, categories, onChange }: FindingsControlsProps) {
   return (
     <div className="findings-controls">

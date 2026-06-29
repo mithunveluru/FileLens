@@ -14,7 +14,6 @@ function formatDate(ms: number | null): string {
   return ms === null ? "—" : new Date(ms).toLocaleString();
 }
 
-/** Read-only modal showing full metadata for a single file. */
 function FilePreview({ path, onClose }: FilePreviewProps) {
   const [info, setInfo] = useState<FileEntry | null>(null);
   const ref = useModalA11y(onClose);

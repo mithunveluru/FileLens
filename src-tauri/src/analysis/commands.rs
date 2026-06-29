@@ -1,5 +1,3 @@
-//! Tauri command that runs the analysis engine over the persisted inventory.
-
 use std::collections::HashSet;
 
 use tauri::State;
@@ -8,8 +6,6 @@ use super::{report, AnalysisInput, AnalysisReport};
 use crate::database::{now_ms, Database};
 use crate::settings;
 
-/// Analyzes the stored inventory using the user's settings (thresholds and
-/// ignore rules) and returns findings plus totals.
 #[tauri::command]
 pub fn analyze_downloads(db: State<'_, Database>) -> Result<AnalysisReport, String> {
     let settings = settings::load(&db).map_err(|err| err.to_string())?;

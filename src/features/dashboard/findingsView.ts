@@ -17,14 +17,13 @@ export interface ViewOptions {
 
 export interface ViewResult {
   rows: Finding[];
-  /** Total matches after filtering, before pagination. */
+  /** Matches after filtering, before pagination. */
   total: number;
   pageCount: number;
-  /** The page actually shown (clamped into range). */
+  /** Clamped into range. */
   page: number;
 }
 
-/** Human-readable labels for each category, shared by the controls and table. */
 export const CATEGORY_LABELS: Record<FindingCategory, string> = {
   largeFile: "Large files",
   oldFile: "Old files",
@@ -33,7 +32,6 @@ export const CATEGORY_LABELS: Record<FindingCategory, string> = {
   duplicate: "Possible duplicates",
 };
 
-/** Applies filtering, search, sorting, and pagination to findings. Pure. */
 export function applyView(findings: Finding[], opts: ViewOptions): ViewResult {
   const search = opts.search.trim().toLowerCase();
   const filtered = findings.filter((finding) => {

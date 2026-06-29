@@ -1,6 +1,3 @@
-//! Tauri commands that drive a scan, persist its results, and expose history.
-//! Also owns the shared state that lets a running scan be cancelled.
-
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -12,21 +9,16 @@ use super::{scan, ScanOutcome};
 use crate::database::{now_ms, Database, ScanRecord};
 use crate::settings;
 
-/// Event emitted periodically during a scan; payload is the running file count.
 const PROGRESS_EVENT: &str = "scan:progress";
-
-/// Upper bound on how many history rows the frontend may request at once.
 const MAX_HISTORY_LIMIT: i64 = 100;
 
-/// Shared scan control: a cancel flag the running walk polls, plus a guard that
-/// stops two scans from running (and fighting over the cancel flag) at once.
 #[derive(Default)]
 pub struct ScanState {
     cancel: Arc<AtomicBool>,
+    // Guards against two scans running and fighting over the cancel flag.
     running: AtomicBool,
 }
 
-/// Outcome of one scan run, including timing, used to persist a history row.
 struct ScanRun {
     outcome: ScanOutcome,
     root: String,
@@ -34,7 +26,6 @@ struct ScanRun {
     finished_ms: i64,
 }
 
-/// Scans the configured Downloads folder, persists the inventory, and returns it.
 #[tauri::command]
 pub async fn scan_downloads(
     app: AppHandle,
@@ -67,20 +58,17 @@ pub async fn scan_downloads(
     Ok(run.outcome)
 }
 
-/// Requests cancellation of the in-progress scan, if any.
 #[tauri::command]
 pub fn cancel_scan(state: State<'_, ScanState>) {
     state.cancel.store(true, Ordering::Relaxed);
 }
 
-/// Returns the most recent scans, newest first.
 #[tauri::command]
 pub fn scan_history(db: State<'_, Database>, limit: i64) -> Result<Vec<ScanRecord>, String> {
     let limit = limit.clamp(1, MAX_HISTORY_LIMIT);
     db.scan_history(limit).map_err(|err| err.to_string())
 }
 
-/// Resolves the scan root from settings (override) or the OS Downloads folder.
 fn resolve_root(app: &AppHandle, db: &Database) -> Result<PathBuf, String> {
     let os_default = app.path().download_dir().map_err(|err| err.to_string())?;
     let settings = settings::load(db).map_err(|err| err.to_string())?;

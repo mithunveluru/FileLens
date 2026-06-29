@@ -16,7 +16,6 @@ const STRATEGY_LABELS: Record<ConflictStrategy, string> = {
   skip: "Skip",
 };
 
-/** Per-file table of proposed moves; each row is individually editable. */
 function PlanTable({ actions, onCategory, onStrategy, onStatus }: PlanTableProps) {
   return (
     <div className="org-table-wrap">

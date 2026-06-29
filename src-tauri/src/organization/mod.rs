@@ -1,10 +1,4 @@
-//! Smart Organization: classify Downloads files into category folders via a
-//! planning-first flow. The planner only *proposes* an [`OrganizationPlan`];
-//! nothing touches the filesystem until the user approves and execution runs.
-//!
-//! Module boundaries mirror the rest of the backend: `classifier`, `planner`,
-//! and `conflict` are pure (no Tauri, no filesystem), so they are deterministic
-//! and unit-tested; `commands` is the thin orchestrator.
+//! Smart Organization: classify, plan, then execute file moves (planning-first).
 
 pub mod classifier;
 pub mod commands;
@@ -14,7 +8,6 @@ pub mod planner;
 
 use serde::{Deserialize, Serialize};
 
-/// The category a file is organized into. Serialized as camelCase.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum FileKind {
@@ -40,7 +33,6 @@ pub(crate) const ALL_KINDS: [FileKind; 8] = [
 ];
 
 impl FileKind {
-    /// The destination subfolder name inside Downloads.
     pub fn folder_name(self) -> &'static str {
         match self {
             FileKind::Documents => "Documents",
@@ -55,7 +47,6 @@ impl FileKind {
     }
 }
 
-/// Whether the user wants a proposed action carried out.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ActionStatus {
@@ -63,7 +54,6 @@ pub enum ActionStatus {
     Skipped,
 }
 
-/// How to resolve a destination that already exists at execution time.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ConflictStrategy {
@@ -73,8 +63,7 @@ pub enum ConflictStrategy {
     KeepBoth,
 }
 
-/// A single proposed move. The frontend may edit `destination`, `strategy`, and
-/// `status` before execution.
+// The frontend may edit destination, strategy, and status before execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrganizationAction {
@@ -82,7 +71,7 @@ pub struct OrganizationAction {
     pub destination: String,
     pub kind: FileKind,
     pub reason: String,
-    /// True if the destination already exists on disk at plan time.
+    /// Destination already exists on disk at plan time.
     pub conflict: bool,
     pub strategy: ConflictStrategy,
     pub status: ActionStatus,
@@ -103,7 +92,6 @@ pub struct PlanSummary {
     pub categories: Vec<CategoryCount>,
 }
 
-/// The proposed organization, returned for preview before any changes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrganizationPlan {
@@ -112,19 +100,17 @@ pub struct OrganizationPlan {
     pub summary: PlanSummary,
 }
 
-/// The result of executing a plan, returned to the frontend.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExecutionResult {
     pub moved: usize,
     pub skipped: usize,
     pub failed: usize,
-    /// The history session id, present when at least one file was moved.
+    /// Present when at least one file was moved.
     pub session_id: Option<i64>,
     pub errors: Vec<String>,
 }
 
-/// The result of undoing a session, returned to the frontend.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UndoResult {

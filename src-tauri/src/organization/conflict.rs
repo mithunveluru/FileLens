@@ -1,14 +1,10 @@
-//! Conflict resolution for destinations that already exist at execution time.
-//! Pure: the "is this path taken?" check is injected, so the naming logic is
-//! unit-tested without touching disk.
+//! Resolves a destination when the target name is already taken.
 
 use std::path::{Path, PathBuf};
 
 use super::ConflictStrategy;
 
-/// Computes the final destination for a move, applying `strategy` only if the
-/// intended `dest` is already taken. Returns `None` when the move should be
-/// skipped.
+// Returns None when the move should be skipped.
 pub fn resolve_destination(
     dest: &Path,
     strategy: ConflictStrategy,

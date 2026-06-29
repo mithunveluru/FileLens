@@ -1,6 +1,3 @@
-//! Tauri commands orchestrating Smart Organization. These coordinate the pure
-//! modules and the database; they contain no business logic of their own.
-
 use std::path::Path;
 
 use tauri::{AppHandle, Manager, State};
@@ -9,7 +6,6 @@ use super::{execution, planner, ExecutionResult, OrganizationPlan, UndoResult};
 use crate::database::{Database, OrganizationSessionRecord};
 use crate::settings;
 
-/// Upper bound on history rows returned to the frontend.
 const MAX_HISTORY_LIMIT: i64 = 100;
 
 fn resolve_root(app: &AppHandle, db: &Database) -> Result<std::path::PathBuf, String> {
@@ -22,8 +18,7 @@ fn resolve_root(app: &AppHandle, db: &Database) -> Result<std::path::PathBuf, St
     settings::resolve_root(&settings, remembered.as_deref(), os_default)
 }
 
-/// Builds a proposed organization plan from the current inventory. Read-only:
-/// it never modifies the filesystem.
+// Read-only: never modifies the filesystem.
 #[tauri::command]
 pub fn generate_organization_plan(
     app: AppHandle,
@@ -37,9 +32,7 @@ pub fn generate_organization_plan(
     }))
 }
 
-/// Executes an approved plan: moves files and records the session for undo. The
-/// move root is re-resolved server-side, so a tampered `plan.root` cannot
-/// redirect moves outside the Downloads folder.
+// The root is re-resolved server-side so a tampered plan.root cannot redirect moves.
 #[tauri::command]
 pub fn execute_organization_plan(
     app: AppHandle,
@@ -76,7 +69,6 @@ pub fn execute_organization_plan(
     })
 }
 
-/// Returns recent organization sessions, newest first.
 #[tauri::command]
 pub fn organization_history(
     db: State<'_, Database>,
@@ -86,7 +78,6 @@ pub fn organization_history(
         .map_err(|err| err.to_string())
 }
 
-/// Reverses a recorded session by moving each file back to its original path.
 #[tauri::command]
 pub fn undo_organization(
     app: AppHandle,

@@ -14,11 +14,6 @@ import "./App.css";
 
 type View = "cleanup" | "organize";
 
-/**
- * Composition root. Owns the scan, analysis, and settings controllers so they
- * can coordinate: auto-scan on startup, re-analyze after a scan or a settings
- * change, and apply the chosen theme.
- */
 function App() {
   const settings = useSettings();
   const scan = useScan();
