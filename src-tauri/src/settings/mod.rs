@@ -177,7 +177,6 @@ mod tests {
             os_default
         );
 
-        // A remembered folder that no longer exists is ignored.
         assert_eq!(
             resolve_root(&on, Some("/no/such/folder"), os_default.clone()).unwrap(),
             os_default
@@ -194,9 +193,9 @@ mod tests {
         let ignored: HashSet<String> = ["/dl/secret.txt".to_string()].into_iter().collect();
 
         assert!(settings.is_excluded(&file("/dl/secret.txt", Some("txt")), &ignored));
-        assert!(settings.is_excluded(&file("/dl/a.iso", Some("iso")), &ignored)); // case + dot insensitive
+        assert!(settings.is_excluded(&file("/dl/a.iso", Some("iso")), &ignored));
         assert!(settings.is_excluded(&file("/dl/keep/a.txt", Some("txt")), &ignored));
-        assert!(!settings.is_excluded(&file("/dl/keepsake/a.txt", Some("txt")), &ignored)); // not a prefix match
+        assert!(!settings.is_excluded(&file("/dl/keepsake/a.txt", Some("txt")), &ignored));
         assert!(!settings.is_excluded(&file("/dl/normal.txt", Some("txt")), &ignored));
     }
 }

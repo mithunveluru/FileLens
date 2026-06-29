@@ -143,7 +143,6 @@ mod tests {
 
     #[test]
     fn handles_unicode_names() {
-        // Classification keys off extension/MIME, not the (here unicode) stem.
         assert_eq!(
             classify(&file("résumé café.pdf", Some("pdf"), "")).kind,
             FileKind::Documents

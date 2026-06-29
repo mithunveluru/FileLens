@@ -375,9 +375,9 @@ mod tests {
     #[test]
     fn summary_totals_and_reclaimable_keep_one_duplicate() {
         let files = [
-            file("/dl/a", None, 100, Some(NOW)),  // duplicate of b
-            file("/dl/b", None, 100, Some(NOW)),  // duplicate of a
-            file("/dl/c", None, 2000, Some(NOW)), // large
+            file("/dl/a", None, 100, Some(NOW)),
+            file("/dl/b", None, 100, Some(NOW)),
+            file("/dl/c", None, 2000, Some(NOW)),
         ];
         let summary = report(&AnalysisInput {
             files: &files,
@@ -388,7 +388,6 @@ mod tests {
 
         assert_eq!(summary.total_files, 3);
         assert_eq!(summary.total_bytes, 2200);
-        // gross flagged = 100 + 100 + 2000 = 2200; keep one 100-byte copy => 2100.
         assert_eq!(summary.reclaimable_bytes, 2100);
 
         let dup = summary

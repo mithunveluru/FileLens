@@ -397,7 +397,6 @@ mod tests {
             &outcome(vec![file("/dl/a", 1), file("/dl/b", 2)], false),
         )
         .unwrap();
-        // Second scan no longer sees /dl/b -> it is pruned.
         db.persist_scan("/dl", 3, 4, &outcome(vec![file("/dl/a", 1)], false))
             .unwrap();
 
@@ -451,7 +450,6 @@ mod tests {
         let path = dir.path().join("file_lens.db");
         std::fs::write(&path, b"definitely not a sqlite database").unwrap();
 
-        // Must not panic; the unusable file is recreated into a working database.
         let db = Database::open(&path);
         db.set_setting("theme", "dark").unwrap();
         assert_eq!(db.get_setting("theme").unwrap().as_deref(), Some("dark"));
@@ -473,7 +471,7 @@ mod tests {
     fn ignored_paths_add_list_remove() {
         let db = Database::in_memory();
         db.add_ignored("/dl/a").unwrap();
-        db.add_ignored("/dl/a").unwrap(); // idempotent
+        db.add_ignored("/dl/a").unwrap();
         db.add_ignored("/dl/b").unwrap();
         assert_eq!(db.ignored_paths().unwrap().len(), 2);
 
@@ -491,7 +489,6 @@ mod tests {
             &outcome(vec![file("/dl/a", 1), file("/dl/b", 2)], false),
         )
         .unwrap();
-        // Cancelled partial scan only saw /dl/a, but must not delete /dl/b.
         db.persist_scan("/dl", 3, 4, &outcome(vec![file("/dl/a", 1)], true))
             .unwrap();
 

@@ -204,8 +204,8 @@ mod tests {
         );
 
         assert_eq!(report.moves.len(), 1);
-        assert!(dest_dir.join("a.txt").exists()); // original kept
-        assert!(dest_dir.join("a (1).txt").exists()); // both kept
+        assert!(dest_dir.join("a.txt").exists());
+        assert!(dest_dir.join("a (1).txt").exists());
     }
 
     #[test]
@@ -276,7 +276,6 @@ mod tests {
         let root = dir.path();
         let source = root.join("a.txt");
         fs::write(&source, b"x").unwrap();
-        // Lexically "under" root via starts_with, but escapes through "..".
         let escaping = root.join("..").join("escaped.txt");
 
         let report = execute(

@@ -145,7 +145,6 @@ mod tests {
 
         let outcome = scan(dir.path(), &AtomicBool::new(false), |_| {});
 
-        // Only the real file is inventoried; the symlink is skipped.
         assert_eq!(outcome.files.len(), 1);
         assert_eq!(outcome.files[0].name, "real.txt");
     }

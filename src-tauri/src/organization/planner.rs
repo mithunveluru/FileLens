@@ -121,7 +121,6 @@ mod tests {
         ];
         let plan = build_plan(&files, Path::new("/dl"), &never_exists);
 
-        // The already-nested file is left alone.
         assert_eq!(plan.actions.len(), 1);
         assert_eq!(plan.actions[0].source, "/dl/a.png");
     }
