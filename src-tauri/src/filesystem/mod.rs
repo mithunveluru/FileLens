@@ -77,4 +77,18 @@ mod tests {
         assert_eq!(entry.mime_type, "application/json");
         assert_eq!(entry.size_bytes, 2);
     }
+
+    #[test]
+    fn extensionless_file_has_no_extension_and_octet_stream_mime() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("README");
+        fs::write(&path, b"x").unwrap();
+        let metadata = fs::metadata(&path).unwrap();
+
+        let entry = read_entry(&path, &metadata).unwrap();
+
+        assert_eq!(entry.extension, None);
+        assert_eq!(entry.mime_type, "application/octet-stream");
+        assert!(!entry.is_hidden);
+    }
 }

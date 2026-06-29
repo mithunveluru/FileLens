@@ -221,6 +221,30 @@ mod tests {
     }
 
     #[test]
+    fn skip_strategy_leaves_both_files_untouched_on_conflict() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let source = root.join("a.txt");
+        fs::write(&source, b"new").unwrap();
+        let dest_dir = root.join("Documents");
+        fs::create_dir_all(&dest_dir).unwrap();
+        fs::write(dest_dir.join("a.txt"), b"existing").unwrap();
+
+        let mut act = action(
+            source.to_str().unwrap(),
+            dest_dir.join("a.txt").to_str().unwrap(),
+        );
+        act.strategy = ConflictStrategy::Skip;
+
+        let report = execute(root, &[act]);
+
+        assert_eq!(report.moves.len(), 0);
+        assert_eq!(report.skipped, 1);
+        assert!(source.exists());
+        assert_eq!(fs::read(dest_dir.join("a.txt")).unwrap(), b"existing");
+    }
+
+    #[test]
     fn missing_source_is_recorded_and_others_continue() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();

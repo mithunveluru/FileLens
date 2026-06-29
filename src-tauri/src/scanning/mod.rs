@@ -109,6 +109,29 @@ mod tests {
     }
 
     #[test]
+    fn empty_directory_yields_an_empty_inventory() {
+        let dir = tempfile::tempdir().unwrap();
+
+        let outcome = scan(dir.path(), &AtomicBool::new(false), |_| {});
+
+        assert!(outcome.files.is_empty());
+        assert_eq!(outcome.error_count, 0);
+        assert!(!outcome.cancelled);
+    }
+
+    #[test]
+    fn inventories_unicode_file_names() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("résumé café.pdf"), b"x").unwrap();
+
+        let outcome = scan(dir.path(), &AtomicBool::new(false), |_| {});
+
+        assert_eq!(outcome.files.len(), 1);
+        assert_eq!(outcome.files[0].name, "résumé café.pdf");
+        assert_eq!(outcome.files[0].extension.as_deref(), Some("pdf"));
+    }
+
+    #[test]
     fn already_cancelled_walk_reports_cancelled() {
         let dir = tempfile::tempdir().unwrap();
         fs::write(dir.path().join("a.txt"), b"x").unwrap();
