@@ -1,9 +1,6 @@
 //! SQLite persistence. A single connection guarded by a `Mutex` is managed in
-//! Tauri state; for a desktop app's low write concurrency that is simpler and
-//! plenty fast.
-//
-// ponytail: single Mutex<Connection>; switch to an r2d2 pool only if lock
-// contention ever shows up in practice.
+//! Tauri state; for this app's low write concurrency that is simpler than a
+//! pool and fast enough.
 
 use std::path::Path;
 use std::sync::Mutex;

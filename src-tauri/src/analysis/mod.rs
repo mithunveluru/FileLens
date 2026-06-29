@@ -70,7 +70,7 @@ pub struct AnalysisReport {
     pub findings: Vec<Finding>,
 }
 
-/// Thresholds the rules use. Defaults today; user-configurable from Phase 6.
+/// Thresholds the rules use, built from the user's settings.
 #[derive(Debug, Clone)]
 pub struct AnalysisConfig {
     pub large_file_min_bytes: u64,
@@ -237,9 +237,9 @@ fn flag_by_extension(
 
 /// Flags files that share an exact (non-zero) size as likely duplicates.
 //
-// ponytail: size match is a metadata-only heuristic (cheap, no false negatives
-// since identical content implies identical size). For precise detection, add a
-// content-hash pass in the scanning phase and group by hash instead.
+// Size matching is a metadata-only heuristic: no false negatives (identical
+// content implies identical size) but possible false positives. Content hashing
+// during scanning would make this exact.
 fn duplicates(input: &AnalysisInput) -> Vec<Finding> {
     let mut by_size: HashMap<u64, Vec<&FileEntry>> = HashMap::new();
     for file in input.files.iter().filter(|f| f.size_bytes > 0) {

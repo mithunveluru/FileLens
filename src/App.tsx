@@ -39,7 +39,6 @@ function App() {
       });
   }, []);
 
-  // Auto-scan once on startup if the user enabled it.
   useEffect(() => {
     if (!autoScanned.current && settings.value?.autoScanOnStartup) {
       autoScanned.current = true;

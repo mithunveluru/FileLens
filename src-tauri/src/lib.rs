@@ -24,7 +24,7 @@ struct AppInfo {
     version: String,
 }
 
-/// Smoke-test command proving the React <-> Rust IPC bridge is wired up.
+/// Application name and version, shown in the UI footer.
 #[tauri::command]
 fn app_info() -> AppInfo {
     AppInfo {

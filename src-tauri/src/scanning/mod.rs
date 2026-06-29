@@ -53,7 +53,6 @@ pub fn scan(root: &Path, cancel: &AtomicBool, mut on_progress: impl FnMut(usize)
             }
         };
 
-        // Inventory regular files only; skip directories and symlinks.
         if !entry.file_type().is_file() {
             continue;
         }

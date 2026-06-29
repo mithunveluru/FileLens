@@ -38,7 +38,6 @@ function Dashboard({ analysis }: DashboardProps) {
   const [lastIgnored, setLastIgnored] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // Recompute the table view only when the report or controls change.
   const viewResult = useMemo(
     () => (report ? applyView(report.findings, view) : null),
     [report, view],

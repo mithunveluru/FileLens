@@ -33,9 +33,7 @@ pub fn read_entry(path: &Path, metadata: &std::fs::Metadata) -> Option<FileEntry
     let mime_type = mime_guess::from_path(path)
         .first_or_octet_stream()
         .to_string();
-    // ponytail: dotfile check covers Linux/macOS; add Windows
-    // FILE_ATTRIBUTE_HIDDEN (std::os::windows::fs::MetadataExt) when Windows
-    // becomes a build target.
+    // Dotfile check covers Linux/macOS; Windows hidden attributes are not yet handled.
     let is_hidden = name.starts_with('.');
 
     Some(FileEntry {
