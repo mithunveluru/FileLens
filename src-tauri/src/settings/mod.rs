@@ -38,7 +38,7 @@ impl Default for Settings {
             ignored_folders: Vec::new(),
             ignored_extensions: Vec::new(),
             theme: "system".to_string(),
-            auto_scan_on_startup: false,
+            auto_scan_on_startup: true,
         }
     }
 }
