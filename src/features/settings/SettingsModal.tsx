@@ -125,6 +125,15 @@ function SettingsModal({ settings, onSave, onClose }: SettingsModalProps) {
           Launch File Lens when I log in
         </label>
 
+        <label className="settings-checkbox">
+          <input
+            type="checkbox"
+            checked={form.rememberLastScanLocation}
+            onChange={(e) => set("rememberLastScanLocation", e.currentTarget.checked)}
+          />
+          Remember the last scanned location
+        </label>
+
         <div className="modal-actions">
           <button type="button" onClick={onClose}>
             Cancel

@@ -55,6 +55,15 @@ pub async fn scan_downloads(
         // Persistence failure must not lose the scan the user just ran.
         warn!("failed to persist scan results: {err}");
     }
+
+    // Remember where we scanned so the next launch can reuse it.
+    if settings::load(&db)
+        .map(|s| s.remember_last_scan_location)
+        .unwrap_or(false)
+    {
+        let _ = db.set_setting(settings::LAST_SCAN_LOCATION_KEY, &run.root);
+    }
+
     Ok(run.outcome)
 }
 
@@ -75,7 +84,11 @@ pub fn scan_history(db: State<'_, Database>, limit: i64) -> Result<Vec<ScanRecor
 fn resolve_root(app: &AppHandle, db: &Database) -> Result<PathBuf, String> {
     let os_default = app.path().download_dir().map_err(|err| err.to_string())?;
     let settings = settings::load(db).map_err(|err| err.to_string())?;
-    settings::resolve_root(&settings, os_default)
+    let remembered = db
+        .get_setting(settings::LAST_SCAN_LOCATION_KEY)
+        .ok()
+        .flatten();
+    settings::resolve_root(&settings, remembered.as_deref(), os_default)
 }
 
 async fn run_scan(app: &AppHandle, state: &ScanState, root: PathBuf) -> Result<ScanRun, String> {

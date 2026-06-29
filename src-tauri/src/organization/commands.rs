@@ -14,10 +14,12 @@ const MAX_HISTORY_LIMIT: i64 = 100;
 
 fn resolve_root(app: &AppHandle, db: &Database) -> Result<std::path::PathBuf, String> {
     let os_default = app.path().download_dir().map_err(|err| err.to_string())?;
-    settings::resolve_root(
-        &settings::load(db).map_err(|err| err.to_string())?,
-        os_default,
-    )
+    let settings = settings::load(db).map_err(|err| err.to_string())?;
+    let remembered = db
+        .get_setting(settings::LAST_SCAN_LOCATION_KEY)
+        .ok()
+        .flatten();
+    settings::resolve_root(&settings, remembered.as_deref(), os_default)
 }
 
 /// Builds a proposed organization plan from the current inventory. Read-only:

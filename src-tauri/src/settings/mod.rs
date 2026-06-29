@@ -15,6 +15,10 @@ use crate::filesystem::FileEntry;
 
 const SETTINGS_KEY: &str = "app";
 
+/// Database key under which the most recently scanned folder is remembered. Kept
+/// separate from the user settings document so saving settings never clobbers it.
+pub const LAST_SCAN_LOCATION_KEY: &str = "last_scan_location";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
@@ -29,6 +33,8 @@ pub struct Settings {
     pub auto_scan_on_startup: bool,
     /// Start File Lens automatically when the user logs in (OS-level autostart).
     pub launch_on_startup: bool,
+    /// Reuse the most recently scanned folder when no explicit folder is set.
+    pub remember_last_scan_location: bool,
 }
 
 impl Default for Settings {
@@ -42,6 +48,7 @@ impl Default for Settings {
             theme: "system".to_string(),
             auto_scan_on_startup: true,
             launch_on_startup: false,
+            remember_last_scan_location: true,
         }
     }
 }
@@ -78,25 +85,38 @@ impl Settings {
     }
 }
 
-/// Resolves the scan/organization root: the configured override if set and
-/// valid, otherwise the OS Downloads folder passed in by the caller.
-pub fn resolve_root(settings: &Settings, os_default: PathBuf) -> Result<PathBuf, String> {
-    match settings
+/// Resolves the scan/organization root, in order of preference: the configured
+/// folder override, then the remembered last-scan location (when that preference
+/// is enabled and the folder still exists), then the OS Downloads folder.
+pub fn resolve_root(
+    settings: &Settings,
+    remembered: Option<&str>,
+    os_default: PathBuf,
+) -> Result<PathBuf, String> {
+    if let Some(folder) = settings
         .downloads_folder
         .as_deref()
         .map(str::trim)
         .filter(|s| !s.is_empty())
     {
-        Some(folder) => {
-            let path = PathBuf::from(folder);
+        let path = PathBuf::from(folder);
+        return if path.is_dir() {
+            Ok(path)
+        } else {
+            Err("The configured Downloads folder does not exist.".into())
+        };
+    }
+
+    if settings.remember_last_scan_location {
+        if let Some(remembered) = remembered.map(str::trim).filter(|s| !s.is_empty()) {
+            let path = PathBuf::from(remembered);
             if path.is_dir() {
-                Ok(path)
-            } else {
-                Err("The configured Downloads folder does not exist.".into())
+                return Ok(path);
             }
         }
-        None => Ok(os_default),
     }
+
+    Ok(os_default)
 }
 
 /// Loads settings, falling back to defaults if absent or unparseable.
@@ -141,6 +161,39 @@ mod tests {
         let config = settings.analysis_config();
         assert_eq!(config.large_file_min_bytes, 100 * 1024 * 1024);
         assert_eq!(config.old_file_max_age_days, 30);
+    }
+
+    #[test]
+    fn resolve_root_prefers_remembered_location_then_falls_back() {
+        let dir = tempfile::tempdir().unwrap();
+        let remembered = dir.path().join("remembered");
+        let os_default = dir.path().join("downloads");
+        std::fs::create_dir(&remembered).unwrap();
+        std::fs::create_dir(&os_default).unwrap();
+
+        let on = Settings {
+            remember_last_scan_location: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            resolve_root(&on, remembered.to_str(), os_default.clone()).unwrap(),
+            remembered
+        );
+
+        let off = Settings {
+            remember_last_scan_location: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            resolve_root(&off, remembered.to_str(), os_default.clone()).unwrap(),
+            os_default
+        );
+
+        // A remembered folder that no longer exists is ignored.
+        assert_eq!(
+            resolve_root(&on, Some("/no/such/folder"), os_default.clone()).unwrap(),
+            os_default
+        );
     }
 
     #[test]

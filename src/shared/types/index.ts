@@ -151,6 +151,7 @@ export interface Settings {
   theme: "system" | "light" | "dark";
   autoScanOnStartup: boolean;
   launchOnStartup: boolean;
+  rememberLastScanLocation: boolean;
 }
 
 /** A persisted past scan run. Mirrors the Rust `ScanRecord` struct. */
