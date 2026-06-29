@@ -117,9 +117,10 @@
   opacity: 0.5;
 }
 
-.dashboard-refresh {
+/* Scoped under .dashboard to outrank the transparent-bordered `.dashboard button` rule. */
+.dashboard .dashboard-refresh {
   align-self: center;
-  border-color: var(--border) !important;
+  border-color: var(--border);
 }
 
 .findings-actions {

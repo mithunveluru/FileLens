@@ -69,7 +69,9 @@ body {
   *,
   *::before,
   *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: must override per-element animation/transition durations to honor reduced-motion */
     animation-duration: 0.001ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: must override per-element animation/transition durations to honor reduced-motion */
     transition-duration: 0.001ms !important;
   }
 }
