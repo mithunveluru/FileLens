@@ -1,0 +1,64 @@
+import { listen } from "@tauri-apps/api/event";
+import { useCallback, useEffect, useState } from "react";
+import { cancelScan, scanDownloads } from "@/shared/ipc/commands";
+import { logger } from "@/shared/logging/logger";
+import type { ScanOutcome } from "@/shared/types";
+
+/** Backend event carrying the running file count during a scan. */
+const PROGRESS_EVENT = "scan:progress";
+
+export type ScanStatus = "idle" | "scanning" | "done" | "error";
+
+export interface ScanController {
+  status: ScanStatus;
+  /** Files counted so far (during a scan) or in total (when done). */
+  progress: number;
+  result: ScanOutcome | null;
+  error: string | null;
+  start: () => Promise<void>;
+  cancel: () => void;
+}
+
+/**
+ * Owns the lifecycle of a Downloads scan: starting it, streaming progress from
+ * the backend, and exposing the final inventory. Keeps all scan state in one
+ * place so UI components stay presentational.
+ */
+export function useScan(): ScanController {
+  const [status, setStatus] = useState<ScanStatus>("idle");
+  const [progress, setProgress] = useState(0);
+  const [result, setResult] = useState<ScanOutcome | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unlisten = listen<number>(PROGRESS_EVENT, (event) => {
+      setProgress(event.payload);
+    });
+    return () => {
+      unlisten.then((off) => off());
+    };
+  }, []);
+
+  const start = useCallback(async () => {
+    setStatus("scanning");
+    setProgress(0);
+    setResult(null);
+    setError(null);
+    try {
+      const outcome = await scanDownloads();
+      setResult(outcome);
+      setProgress(outcome.files.length);
+      setStatus("done");
+    } catch (cause) {
+      logger.error(`Scan failed: ${String(cause)}`);
+      setError(String(cause));
+      setStatus("error");
+    }
+  }, []);
+
+  const cancel = useCallback(() => {
+    void cancelScan();
+  }, []);
+
+  return { status, progress, result, error, start, cancel };
+}

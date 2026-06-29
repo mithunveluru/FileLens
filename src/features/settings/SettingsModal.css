@@ -1,0 +1,50 @@
+.settings-modal {
+  max-width: 32rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.settings-modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.settings-modal input,
+.settings-modal textarea,
+.settings-modal select {
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font: inherit;
+  background: transparent;
+  color: inherit;
+}
+
+.settings-modal textarea {
+  resize: vertical;
+}
+
+.settings-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.settings-row > label {
+  flex: 1;
+}
+
+.settings-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: flex-end;
+}
+
+.settings-checkbox input {
+  width: auto;
+}

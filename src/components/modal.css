@@ -1,0 +1,90 @@
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 10;
+  animation: modal-fade 0.15s ease-out;
+}
+
+.modal {
+  background: var(--surface);
+  color: inherit;
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 28rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: modal-pop 0.15s ease-out;
+}
+
+.modal:focus {
+  outline: none;
+}
+
+.modal h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.modal button {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  padding: 0.5em 1em;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+}
+
+.modal button.danger {
+  border-color: transparent;
+  background: var(--danger);
+  color: #fff;
+}
+
+.file-preview {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.file-preview div {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  gap: 0.5rem;
+}
+
+.file-preview dt {
+  color: var(--muted);
+}
+
+.file-preview dd {
+  margin: 0;
+  word-break: break-all;
+}
+
+@keyframes modal-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}

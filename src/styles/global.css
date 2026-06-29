@@ -1,0 +1,75 @@
+:root {
+  /* Design tokens. Dark values are overridden below. */
+  --bg: #f6f6f6;
+  --fg: #0f0f0f;
+  --surface: #ffffff;
+  --border: rgba(0, 0, 0, 0.12);
+  --muted: rgba(0, 0, 0, 0.55);
+  --accent: #396cd8;
+  --danger: #c0392b;
+
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--fg);
+  background-color: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+/* Dark palette: by OS preference unless the user forced light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1e1e1e;
+    --fg: #f6f6f6;
+    --surface: #2a2a2a;
+    --border: rgba(255, 255, 255, 0.14);
+    --muted: rgba(255, 255, 255, 0.6);
+    --accent: #5b8def;
+  }
+}
+
+/* Explicit theme overrides chosen in Settings. */
+:root[data-theme="light"] {
+  --bg: #f6f6f6;
+  --fg: #0f0f0f;
+  --surface: #ffffff;
+  --border: rgba(0, 0, 0, 0.12);
+  --muted: rgba(0, 0, 0, 0.55);
+  --accent: #396cd8;
+}
+
+:root[data-theme="dark"] {
+  --bg: #1e1e1e;
+  --fg: #f6f6f6;
+  --surface: #2a2a2a;
+  --border: rgba(255, 255, 255, 0.14);
+  --muted: rgba(255, 255, 255, 0.6);
+  --accent: #5b8def;
+}
+
+/* Visible keyboard focus everywhere. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

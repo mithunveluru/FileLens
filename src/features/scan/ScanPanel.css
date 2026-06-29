@@ -1,0 +1,73 @@
+.scan-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.scan-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.scan-panel button {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  padding: 0.6em 1.2em;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+}
+
+.scan-panel button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.scan-status {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted);
+}
+
+.scan-error {
+  margin: 0;
+  color: var(--danger);
+}
+
+.scan-note {
+  margin: 0;
+  color: var(--muted);
+}
+
+.scan-history {
+  width: 100%;
+  max-width: 28rem;
+  text-align: left;
+}
+
+.scan-history h2 {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.scan-history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.scan-history li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+}

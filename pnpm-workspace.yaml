@@ -1,0 +1,5 @@
+# Allow build scripts only for dependencies we trust and need:
+# esbuild's native binary (used by Vite/Vitest) and the git-hook setup.
+allowBuilds:
+  esbuild: true
+  simple-git-hooks: true
