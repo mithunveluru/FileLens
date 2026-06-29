@@ -9,7 +9,7 @@ interface ScanPanelProps {
 
 /** Triggers a scan, shows live progress, and summarises the inventory. */
 function ScanPanel({ scan }: ScanPanelProps) {
-  const { status, progress, result, error, start, cancel } = scan;
+  const { status, progress, elapsedSeconds, result, error, start, cancel } = scan;
   const scanning = status === "scanning";
 
   return (
@@ -27,7 +27,7 @@ function ScanPanel({ scan }: ScanPanelProps) {
 
       {scanning && (
         <p className="scan-status" aria-live="polite">
-          <Spinner /> {progress} files scanned…
+          <Spinner /> Scanning files — {progress} found · {elapsedSeconds}s
         </p>
       )}
 
