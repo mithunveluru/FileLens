@@ -65,3 +65,14 @@ CREATE TABLE IF NOT EXISTS organization_moves (
 );
 
 CREATE INDEX IF NOT EXISTS idx_org_moves_session ON organization_moves(session_id);
+
+-- Persistent content-hash cache for duplicate detection. A hash is reused only
+-- when size and modified time still match, so an edited file is rehashed
+-- automatically. Keyed by path since one path holds one current hash.
+CREATE TABLE IF NOT EXISTS hash_cache (
+    path        TEXT    PRIMARY KEY,
+    size_bytes  INTEGER NOT NULL,
+    modified_ms INTEGER,
+    algo        TEXT    NOT NULL,
+    hash        TEXT    NOT NULL
+);

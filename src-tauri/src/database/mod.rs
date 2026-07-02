@@ -286,6 +286,47 @@ impl Database {
         Ok(())
     }
 
+    // Returns a cached hash only when size and modified time are unchanged, so
+    // an edited file (which changes at least one) is never matched.
+    pub fn cached_hash(
+        &self,
+        path: &str,
+        size_bytes: u64,
+        modified_ms: Option<i64>,
+        algo: &str,
+    ) -> rusqlite::Result<Option<String>> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        conn.query_row(
+            "SELECT hash FROM hash_cache
+             WHERE path = ?1 AND size_bytes = ?2 AND modified_ms IS ?3 AND algo = ?4",
+            params![path, size_bytes as i64, modified_ms, algo],
+            |row| row.get(0),
+        )
+        .optional()
+    }
+
+    pub fn store_hash(
+        &self,
+        path: &str,
+        size_bytes: u64,
+        modified_ms: Option<i64>,
+        algo: &str,
+        hash: &str,
+    ) -> rusqlite::Result<()> {
+        let conn = self.conn.lock().expect("db mutex poisoned");
+        conn.execute(
+            "INSERT INTO hash_cache (path, size_bytes, modified_ms, algo, hash)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(path) DO UPDATE SET
+                size_bytes = excluded.size_bytes,
+                modified_ms = excluded.modified_ms,
+                algo = excluded.algo,
+                hash = excluded.hash",
+            params![path, size_bytes as i64, modified_ms, algo, hash],
+        )?;
+        Ok(())
+    }
+
     pub fn scan_history(&self, limit: i64) -> rusqlite::Result<Vec<ScanRecord>> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         let mut stmt = conn.prepare(
