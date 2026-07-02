@@ -17,14 +17,23 @@ pub struct ScanOutcome {
     pub files: Vec<FileEntry>,
     pub error_count: usize,
     pub cancelled: bool,
+    // Set when the walk hit `max_files` and stopped. The caller refuses to
+    // persist such a scan, since it almost always means the wrong (huge) root.
+    pub limit_exceeded: bool,
 }
 
 // Throttled to avoid flooding the IPC bridge.
 const PROGRESS_INTERVAL: usize = 100;
 
 // Symlinks are never followed; unreadable entries are logged and skipped; a set
-// `cancel` flag stops the walk early without error.
-pub fn scan(root: &Path, cancel: &AtomicBool, mut on_progress: impl FnMut(usize)) -> ScanOutcome {
+// `cancel` flag stops the walk early without error. Once `max_files` files have
+// been collected the walk stops and reports `limit_exceeded`.
+pub fn scan(
+    root: &Path,
+    cancel: &AtomicBool,
+    max_files: usize,
+    mut on_progress: impl FnMut(usize),
+) -> ScanOutcome {
     let mut files = Vec::new();
     let mut error_count = 0usize;
 
@@ -34,6 +43,15 @@ pub fn scan(root: &Path, cancel: &AtomicBool, mut on_progress: impl FnMut(usize)
                 files,
                 error_count,
                 cancelled: true,
+                limit_exceeded: false,
+            };
+        }
+        if files.len() >= max_files {
+            return ScanOutcome {
+                files,
+                error_count,
+                cancelled: false,
+                limit_exceeded: true,
             };
         }
 
@@ -74,6 +92,7 @@ pub fn scan(root: &Path, cancel: &AtomicBool, mut on_progress: impl FnMut(usize)
         files,
         error_count,
         cancelled: false,
+        limit_exceeded: false,
     }
 }
 
@@ -90,7 +109,7 @@ mod tests {
         fs::create_dir(root.join("sub")).unwrap();
         fs::write(root.join("sub").join("b.pdf"), b"data").unwrap();
 
-        let outcome = scan(root, &AtomicBool::new(false), |_| {});
+        let outcome = scan(root, &AtomicBool::new(false), usize::MAX, |_| {});
 
         assert_eq!(outcome.files.len(), 2);
         assert_eq!(outcome.error_count, 0);
@@ -104,7 +123,7 @@ mod tests {
     fn empty_directory_yields_an_empty_inventory() {
         let dir = tempfile::tempdir().unwrap();
 
-        let outcome = scan(dir.path(), &AtomicBool::new(false), |_| {});
+        let outcome = scan(dir.path(), &AtomicBool::new(false), usize::MAX, |_| {});
 
         assert!(outcome.files.is_empty());
         assert_eq!(outcome.error_count, 0);
@@ -116,7 +135,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         fs::write(dir.path().join("résumé café.pdf"), b"x").unwrap();
 
-        let outcome = scan(dir.path(), &AtomicBool::new(false), |_| {});
+        let outcome = scan(dir.path(), &AtomicBool::new(false), usize::MAX, |_| {});
 
         assert_eq!(outcome.files.len(), 1);
         assert_eq!(outcome.files[0].name, "résumé café.pdf");
@@ -128,9 +147,23 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         fs::write(dir.path().join("a.txt"), b"x").unwrap();
 
-        let outcome = scan(dir.path(), &AtomicBool::new(true), |_| {});
+        let outcome = scan(dir.path(), &AtomicBool::new(true), usize::MAX, |_| {});
 
         assert!(outcome.cancelled);
+    }
+
+    #[test]
+    fn stops_and_flags_when_file_limit_is_exceeded() {
+        let dir = tempfile::tempdir().unwrap();
+        for i in 0..5 {
+            fs::write(dir.path().join(format!("f{i}.txt")), b"x").unwrap();
+        }
+
+        let outcome = scan(dir.path(), &AtomicBool::new(false), 2, |_| {});
+
+        assert!(outcome.limit_exceeded);
+        assert!(!outcome.cancelled);
+        assert_eq!(outcome.files.len(), 2);
     }
 
     #[cfg(unix)]
@@ -143,7 +176,7 @@ mod tests {
         fs::write(&target, b"x").unwrap();
         symlink(&target, dir.path().join("link.txt")).unwrap();
 
-        let outcome = scan(dir.path(), &AtomicBool::new(false), |_| {});
+        let outcome = scan(dir.path(), &AtomicBool::new(false), usize::MAX, |_| {});
 
         assert_eq!(outcome.files.len(), 1);
         assert_eq!(outcome.files[0].name, "real.txt");

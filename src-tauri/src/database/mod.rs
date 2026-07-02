@@ -358,6 +358,7 @@ mod tests {
             files,
             error_count: 0,
             cancelled,
+            limit_exceeded: false,
         }
     }
 

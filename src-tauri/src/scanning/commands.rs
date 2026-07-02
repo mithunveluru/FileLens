@@ -12,6 +12,10 @@ use crate::settings;
 const PROGRESS_EVENT: &str = "scan:progress";
 const MAX_HISTORY_LIMIT: i64 = 100;
 
+// A Downloads folder never holds this many files; hitting it means the wrong
+// root was resolved (e.g. a home dir), so we abort rather than inventory it.
+const MAX_FILES: usize = 200_000;
+
 #[derive(Default)]
 pub struct ScanState {
     cancel: Arc<AtomicBool>,
@@ -41,6 +45,14 @@ pub async fn scan_downloads(
     let result = run_scan(&app, &scan_state, root).await;
     scan_state.running.store(false, Ordering::SeqCst);
     let run = result?;
+
+    // A wrong, huge root would otherwise flood the inventory and cripple the UI.
+    if run.outcome.limit_exceeded {
+        return Err(format!(
+            "Scan aborted: {} has more than {MAX_FILES} files, which looks like the wrong folder. Check the Downloads folder in Settings.",
+            run.root
+        ));
+    }
 
     if let Err(err) = db.persist_scan(&run.root, run.started_ms, run.finished_ms, &run.outcome) {
         // Persistence failure must not lose the scan the user just ran.
@@ -88,7 +100,7 @@ async fn run_scan(app: &AppHandle, state: &ScanState, root: PathBuf) -> Result<S
     let started_ms = now_ms();
     // The walk is blocking; run it off the async runtime so the UI stays responsive.
     let outcome = tauri::async_runtime::spawn_blocking(move || {
-        scan(&root, &cancel, |count| {
+        scan(&root, &cancel, MAX_FILES, |count| {
             // Progress is best-effort; a failed emit must not abort the scan.
             let _ = app.emit(PROGRESS_EVENT, count);
         })
