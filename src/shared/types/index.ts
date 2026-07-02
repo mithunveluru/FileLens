@@ -20,9 +20,37 @@ export interface ScanOutcome {
   files: FileEntry[];
   errorCount: number;
   cancelled: boolean;
+  limitExceeded: boolean;
 }
 
-export type FindingCategory = "largeFile" | "oldFile" | "installer" | "temporaryFile" | "duplicate";
+export type FindingCategory = "largeFile" | "oldFile" | "installer" | "temporaryFile";
+
+export type VerificationStatus = "verified" | "possibleDuplicate" | "similarMetadata";
+
+export interface DuplicateCandidate {
+  path: string;
+  sizeBytes: number;
+  modifiedMs: number | null;
+}
+
+export interface DuplicateGroup {
+  hash: string;
+  status: VerificationStatus;
+  sizeBytes: number;
+  copies: number;
+  reclaimableBytes: number;
+  files: DuplicateCandidate[];
+}
+
+export interface DuplicateReport {
+  groups: DuplicateGroup[];
+  totalGroups: number;
+  redundantFiles: number;
+  reclaimableBytes: number;
+  filesHashed: number;
+  cacheHits: number;
+  errors: string[];
+}
 
 export interface Finding {
   path: string;

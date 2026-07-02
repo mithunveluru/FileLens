@@ -29,7 +29,6 @@ export const CATEGORY_LABELS: Record<FindingCategory, string> = {
   oldFile: "Old files",
   installer: "Installers",
   temporaryFile: "Temporary files",
-  duplicate: "Possible duplicates",
 };
 
 export function applyView(findings: Finding[], opts: ViewOptions): ViewResult {

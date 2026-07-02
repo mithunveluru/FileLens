@@ -1,0 +1,72 @@
+.duplicates {
+  margin-top: 2rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1.5rem;
+}
+
+.duplicates-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.duplicates-header h2 {
+  margin: 0;
+}
+
+.duplicates-note {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+}
+
+.duplicates-summary {
+  font-weight: 600;
+  margin: 1rem 0;
+}
+
+.duplicate-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.duplicate-group-head {
+  background: var(--surface-muted);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.duplicate-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.duplicate-group li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.duplicate-file {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duplicate-date {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.duplicate-actions {
+  display: flex;
+  gap: 0.5rem;
+}

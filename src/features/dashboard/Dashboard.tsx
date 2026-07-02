@@ -8,6 +8,7 @@ import FindingsControls from "@/features/dashboard/FindingsControls";
 import FindingsTable from "@/features/dashboard/FindingsTable";
 import { applyView, basename, type ViewOptions } from "@/features/dashboard/findingsView";
 import OverviewCards from "@/features/dashboard/OverviewCards";
+import DuplicatesPanel from "@/features/duplicates/DuplicatesPanel";
 import { formatBytes } from "@/shared/format/bytes";
 import type { Finding } from "@/shared/types";
 import "./Dashboard.css";
@@ -176,6 +177,8 @@ function Dashboard({ analysis }: DashboardProps) {
       >
         {status === "running" ? "Refreshing…" : "Refresh analysis"}
       </button>
+
+      <DuplicatesPanel />
 
       {confirmTarget && (
         <ConfirmDialog

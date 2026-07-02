@@ -2,6 +2,7 @@ import { call } from "@/shared/ipc/client";
 import type {
   AnalysisReport,
   AppInfo,
+  DuplicateReport,
   ExecutionResult,
   FileEntry,
   OrganizationPlan,
@@ -25,6 +26,9 @@ export const getScanHistory = (limit = 10): Promise<ScanRecord[]> =>
 
 export const analyzeDownloads = (): Promise<AnalysisReport> =>
   call<AnalysisReport>("analyze_downloads");
+
+export const findDuplicates = (): Promise<DuplicateReport> =>
+  call<DuplicateReport>("find_duplicates");
 
 export const trashFile = (path: string): Promise<void> => call<void>("trash_file", { path });
 
