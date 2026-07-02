@@ -1,6 +1,7 @@
 mod analysis;
 mod cleanup;
 mod database;
+mod dedup;
 mod filesystem;
 mod organization;
 mod scanning;
@@ -9,6 +10,7 @@ mod settings;
 use analysis::commands::analyze_downloads;
 use cleanup::{file_info, ignore_path, reveal_file, trash_file, unignore_path};
 use database::Database;
+use dedup::commands::find_duplicates;
 use organization::commands::{
     execute_organization_plan, generate_organization_plan, organization_history, undo_organization,
 };
@@ -74,6 +76,7 @@ pub fn run() {
             cancel_scan,
             scan_history,
             analyze_downloads,
+            find_duplicates,
             trash_file,
             reveal_file,
             ignore_path,
