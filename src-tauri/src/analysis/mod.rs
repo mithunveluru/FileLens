@@ -15,15 +15,13 @@ pub enum Category {
     OldFile,
     Installer,
     TemporaryFile,
-    Duplicate,
 }
 
-const ALL_CATEGORIES: [Category; 5] = [
+const ALL_CATEGORIES: [Category; 4] = [
     Category::LargeFile,
     Category::OldFile,
     Category::Installer,
     Category::TemporaryFile,
-    Category::Duplicate,
 ];
 
 #[derive(Debug, Clone, Serialize)]
@@ -83,13 +81,7 @@ pub struct AnalysisInput<'a> {
 type Rule = fn(&AnalysisInput) -> Vec<Finding>;
 
 // Add a rule by appending its function here.
-const RULES: &[Rule] = &[
-    large_files,
-    old_files,
-    installers,
-    temporary_files,
-    duplicates,
-];
+const RULES: &[Rule] = &[large_files, old_files, installers, temporary_files];
 
 pub fn analyze(input: &AnalysisInput) -> Vec<Finding> {
     RULES.iter().copied().flat_map(|rule| rule(input)).collect()
@@ -121,30 +113,18 @@ fn summarize(input: &AnalysisInput, findings: &[Finding]) -> AnalysisSummary {
     AnalysisSummary {
         total_files,
         total_bytes,
-        reclaimable_bytes: reclaimable(input, findings),
+        reclaimable_bytes: reclaimable(findings),
         categories,
     }
 }
 
-// Each flagged file counts once, and one copy per duplicate group is kept.
-fn reclaimable(input: &AnalysisInput, findings: &[Finding]) -> u64 {
+// A file flagged by several rules (large and old, say) still counts once.
+fn reclaimable(findings: &[Finding]) -> u64 {
     let mut flagged: HashMap<&str, u64> = HashMap::new();
     for f in findings {
         flagged.insert(&f.path, f.size_bytes);
     }
-    let gross: u64 = flagged.values().sum();
-
-    let mut counts_by_size: HashMap<u64, usize> = HashMap::new();
-    for f in input.files.iter().filter(|f| f.size_bytes > 0) {
-        *counts_by_size.entry(f.size_bytes).or_default() += 1;
-    }
-    let kept_duplicate_copies: u64 = counts_by_size
-        .iter()
-        .filter(|(_, n)| **n >= 2)
-        .map(|(size, _)| *size)
-        .sum();
-
-    gross.saturating_sub(kept_duplicate_copies)
+    flagged.values().sum()
 }
 
 const MS_PER_DAY: i64 = 86_400_000;
@@ -215,31 +195,6 @@ fn flag_by_extension(
         .iter()
         .filter(|f| f.extension.as_deref().is_some_and(|e| exts.contains(&e)))
         .map(|f| finding(f, category, reason.to_string()))
-        .collect()
-}
-
-// Size matching is a metadata-only heuristic: no false negatives (identical
-// content implies identical size) but possible false positives. Content hashing
-// during scanning would make this exact.
-fn duplicates(input: &AnalysisInput) -> Vec<Finding> {
-    let mut by_size: HashMap<u64, Vec<&FileEntry>> = HashMap::new();
-    for file in input.files.iter().filter(|f| f.size_bytes > 0) {
-        by_size.entry(file.size_bytes).or_default().push(file);
-    }
-
-    by_size
-        .into_values()
-        .filter(|group| group.len() >= 2)
-        .flat_map(|group| {
-            let count = group.len();
-            group.into_iter().map(move |f| {
-                finding(
-                    f,
-                    Category::Duplicate,
-                    format!("Possible duplicate: {count} files share this exact size"),
-                )
-            })
-        })
         .collect()
 }
 
@@ -348,32 +303,7 @@ mod tests {
     }
 
     #[test]
-    fn flags_same_size_files_as_duplicates() {
-        let findings = run(&[
-            file("/dl/a", None, 500, Some(NOW)),
-            file("/dl/b", None, 500, Some(NOW)),
-            file("/dl/c", None, 7, Some(NOW)),
-        ]);
-        let dupes: Vec<&str> = findings
-            .iter()
-            .filter(|f| f.category == Category::Duplicate)
-            .map(|f| f.path.as_str())
-            .collect();
-        assert_eq!(dupes.len(), 2);
-        assert!(dupes.contains(&"/dl/a") && dupes.contains(&"/dl/b"));
-    }
-
-    #[test]
-    fn ignores_zero_byte_files_for_duplicates() {
-        let findings = run(&[
-            file("/dl/a", None, 0, Some(NOW)),
-            file("/dl/b", None, 0, Some(NOW)),
-        ]);
-        assert!(!findings.iter().any(|f| f.category == Category::Duplicate));
-    }
-
-    #[test]
-    fn summary_totals_and_reclaimable_keep_one_duplicate() {
+    fn summary_totals_and_reclaimable_count_each_file_once() {
         let files = [
             file("/dl/a", None, 100, Some(NOW)),
             file("/dl/b", None, 100, Some(NOW)),
@@ -388,14 +318,10 @@ mod tests {
 
         assert_eq!(summary.total_files, 3);
         assert_eq!(summary.total_bytes, 2200);
-        assert_eq!(summary.reclaimable_bytes, 2100);
+        // Only the large file (c) is flagged; a and b are no longer guessed as
+        // duplicates by size — that is the verified pipeline's job now.
+        assert_eq!(summary.reclaimable_bytes, 2000);
 
-        let dup = summary
-            .categories
-            .iter()
-            .find(|c| c.category == Category::Duplicate)
-            .unwrap();
-        assert_eq!((dup.count, dup.bytes), (2, 200));
         let large = summary
             .categories
             .iter()
