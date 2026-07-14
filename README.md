@@ -213,7 +213,7 @@ external state library.
 ### Installation
 
 ```bash
-git clone <repository-url>
+git clone github.com/mithunveluru/FileLens
 cd file-lens
 pnpm install
 ```
