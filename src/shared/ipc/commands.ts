@@ -30,6 +30,8 @@ export const analyzeDownloads = (): Promise<AnalysisReport> =>
 export const findDuplicates = (): Promise<DuplicateReport> =>
   call<DuplicateReport>("find_duplicates");
 
+export const cancelDuplicateScan = (): Promise<void> => call<void>("cancel_duplicate_scan");
+
 export const trashFile = (path: string): Promise<void> => call<void>("trash_file", { path });
 
 export const revealFile = (path: string): Promise<void> => call<void>("reveal_file", { path });
@@ -43,8 +45,8 @@ export const getFileInfo = (path: string): Promise<FileEntry | null> =>
 
 export const getSettings = (): Promise<Settings> => call<Settings>("get_settings");
 
-export const saveSettings = (settings: Settings): Promise<void> =>
-  call<void>("save_settings", { settings });
+export const saveSettings = (settings: Settings): Promise<Settings> =>
+  call<Settings>("save_settings", { settings });
 
 export const generateOrganizationPlan = (): Promise<OrganizationPlan> =>
   call<OrganizationPlan>("generate_organization_plan");

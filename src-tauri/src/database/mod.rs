@@ -16,6 +16,14 @@ pub struct Database {
     conn: Mutex<Connection>,
 }
 
+impl Database {
+    // A panic elsewhere does not corrupt the connection, so recover the guard
+    // rather than poisoning every later call.
+    fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
+        self.conn.lock().unwrap_or_else(|err| err.into_inner())
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrganizationSessionRecord {
@@ -74,7 +82,7 @@ impl Database {
         finished_ms: i64,
         outcome: &ScanOutcome,
     ) -> rusqlite::Result<i64> {
-        let mut conn = self.conn.lock().expect("db mutex poisoned");
+        let mut conn = self.conn();
         let tx = conn.transaction()?;
 
         tx.execute(
@@ -126,14 +134,21 @@ impl Database {
                 "DELETE FROM files WHERE last_scan_id != ?1",
                 params![scan_id],
             )?;
+            // Hashes for files that no longer exist would accumulate forever.
+            tx.execute(
+                "DELETE FROM hash_cache WHERE path NOT IN (SELECT path FROM files)",
+                [],
+            )?;
         }
 
         tx.commit()?;
         Ok(scan_id)
     }
 
+    // Unbounded by design: the dashboard filters and searches client-side, and
+    // the scanner's MAX_FILES caps the table. Paginate here if that cap rises.
     pub fn list_files(&self) -> rusqlite::Result<Vec<FileEntry>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = self.conn();
         let mut stmt = conn.prepare(
             "SELECT path, name, extension, size_bytes, created_ms, modified_ms, mime_type, is_hidden
              FROM files",
@@ -154,7 +169,7 @@ impl Database {
     }
 
     pub fn get_file(&self, path: &str) -> rusqlite::Result<Option<FileEntry>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = self.conn();
         conn.query_row(
             "SELECT path, name, extension, size_bytes, created_ms, modified_ms, mime_type, is_hidden
              FROM files WHERE path = ?1",
@@ -176,13 +191,13 @@ impl Database {
     }
 
     pub fn remove_file(&self, path: &str) -> rusqlite::Result<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = self.conn();
         conn.execute("DELETE FROM files WHERE path = ?1", [path])?;
         Ok(())
     }
 
     pub fn get_setting(&self, key: &str) -> rusqlite::Result<Option<String>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = self.conn();
         conn.query_row("SELECT value FROM settings WHERE key = ?1", [key], |row| {
             row.get(0)
         })
@@ -190,7 +205,7 @@ impl Database {
     }
 
     pub fn set_setting(&self, key: &str, value: &str) -> rusqlite::Result<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = self.conn();
         conn.execute(
             "INSERT INTO settings (key, value) VALUES (?1, ?2)
              ON CONFLICT(key) DO UPDATE SET value = excluded.value",
@@ -200,7 +215,7 @@ impl Database {
     }
 
     pub fn add_ignored(&self, path: &str) -> rusqlite::Result<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = self.conn();
         conn.execute(
             "INSERT OR IGNORE INTO ignored_paths (path, created_ms) VALUES (?1, ?2)",
             params![path, now_ms()],
@@ -209,13 +224,13 @@ impl Database {
     }
 
     pub fn remove_ignored(&self, path: &str) -> rusqlite::Result<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = self.conn();
         conn.execute("DELETE FROM ignored_paths WHERE path = ?1", [path])?;
         Ok(())
     }
 
     pub fn ignored_paths(&self) -> rusqlite::Result<Vec<String>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = self.conn();
         let mut stmt = conn.prepare("SELECT path FROM ignored_paths")?;
         let rows = stmt.query_map([], |row| row.get(0))?;
         rows.collect()
@@ -226,7 +241,7 @@ impl Database {
         root: &str,
         moves: &[(String, String)],
     ) -> rusqlite::Result<i64> {
-        let mut conn = self.conn.lock().expect("db mutex poisoned");
+        let mut conn = self.conn();
         let tx = conn.transaction()?;
         tx.execute(
             "INSERT INTO organization_sessions (created_ms, root, move_count) VALUES (?1, ?2, ?3)",
@@ -249,7 +264,7 @@ impl Database {
         &self,
         limit: i64,
     ) -> rusqlite::Result<Vec<OrganizationSessionRecord>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = self.conn();
         let mut stmt = conn.prepare(
             "SELECT id, created_ms, root, move_count, undone
              FROM organization_sessions ORDER BY id DESC LIMIT ?1",
@@ -270,7 +285,7 @@ impl Database {
         &self,
         session_id: i64,
     ) -> rusqlite::Result<Vec<(String, String)>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = self.conn();
         let mut stmt = conn
             .prepare("SELECT source, destination FROM organization_moves WHERE session_id = ?1")?;
         let rows = stmt.query_map([session_id], |row| Ok((row.get(0)?, row.get(1)?)))?;
@@ -278,7 +293,7 @@ impl Database {
     }
 
     pub fn mark_session_undone(&self, session_id: i64) -> rusqlite::Result<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = self.conn();
         conn.execute(
             "UPDATE organization_sessions SET undone = 1 WHERE id = ?1",
             [session_id],
@@ -295,7 +310,7 @@ impl Database {
         modified_ms: Option<i64>,
         algo: &str,
     ) -> rusqlite::Result<Option<String>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = self.conn();
         conn.query_row(
             "SELECT hash FROM hash_cache
              WHERE path = ?1 AND size_bytes = ?2 AND modified_ms IS ?3 AND algo = ?4",
@@ -313,7 +328,7 @@ impl Database {
         algo: &str,
         hash: &str,
     ) -> rusqlite::Result<()> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = self.conn();
         conn.execute(
             "INSERT INTO hash_cache (path, size_bytes, modified_ms, algo, hash)
              VALUES (?1, ?2, ?3, ?4, ?5)
@@ -327,8 +342,35 @@ impl Database {
         Ok(())
     }
 
+    pub fn store_hashes(
+        &self,
+        entries: &[(String, u64, Option<i64>, String)],
+        algo: &str,
+    ) -> rusqlite::Result<()> {
+        if entries.is_empty() {
+            return Ok(());
+        }
+        let mut conn = self.conn();
+        let tx = conn.transaction()?;
+        {
+            let mut stmt = tx.prepare(
+                "INSERT INTO hash_cache (path, size_bytes, modified_ms, algo, hash)
+                 VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT(path) DO UPDATE SET
+                    size_bytes = excluded.size_bytes,
+                    modified_ms = excluded.modified_ms,
+                    algo = excluded.algo,
+                    hash = excluded.hash",
+            )?;
+            for (path, size_bytes, modified_ms, hash) in entries {
+                stmt.execute(params![path, *size_bytes as i64, modified_ms, algo, hash])?;
+            }
+        }
+        tx.commit()
+    }
+
     pub fn scan_history(&self, limit: i64) -> rusqlite::Result<Vec<ScanRecord>> {
-        let conn = self.conn.lock().expect("db mutex poisoned");
+        let conn = self.conn();
         let mut stmt = conn.prepare(
             "SELECT id, root_path, started_ms, finished_ms, file_count, error_count, cancelled
              FROM scans ORDER BY id DESC LIMIT ?1",
@@ -519,6 +561,63 @@ mod tests {
 
         db.remove_ignored("/dl/a").unwrap();
         assert_eq!(db.ignored_paths().unwrap(), vec!["/dl/b".to_string()]);
+    }
+
+    #[test]
+    fn complete_rescan_prunes_orphaned_hash_cache_rows() {
+        let db = Database::in_memory();
+        db.persist_scan(
+            "/dl",
+            1,
+            2,
+            &outcome(vec![file("/dl/a", 1), file("/dl/b", 2)], false),
+        )
+        .unwrap();
+        db.store_hash("/dl/a", 1, Some(1), "blake3", "hash-a")
+            .unwrap();
+        db.store_hash("/dl/b", 2, Some(1), "blake3", "hash-b")
+            .unwrap();
+
+        db.persist_scan("/dl", 3, 4, &outcome(vec![file("/dl/a", 1)], false))
+            .unwrap();
+
+        assert_eq!(
+            db.cached_hash("/dl/a", 1, Some(1), "blake3")
+                .unwrap()
+                .as_deref(),
+            Some("hash-a")
+        );
+        assert!(db
+            .cached_hash("/dl/b", 2, Some(1), "blake3")
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn stores_a_batch_of_hashes_in_one_transaction() {
+        let db = Database::in_memory();
+        db.store_hashes(
+            &[
+                ("/dl/a".to_string(), 1, Some(1), "hash-a".to_string()),
+                ("/dl/b".to_string(), 2, Some(2), "hash-b".to_string()),
+            ],
+            "blake3",
+        )
+        .unwrap();
+
+        assert_eq!(
+            db.cached_hash("/dl/a", 1, Some(1), "blake3")
+                .unwrap()
+                .as_deref(),
+            Some("hash-a")
+        );
+        assert_eq!(
+            db.cached_hash("/dl/b", 2, Some(2), "blake3")
+                .unwrap()
+                .as_deref(),
+            Some("hash-b")
+        );
+        db.store_hashes(&[], "blake3").unwrap();
     }
 
     #[test]

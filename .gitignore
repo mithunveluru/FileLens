@@ -17,6 +17,10 @@ coverage
 .env.local
 .env.*.local
 
+# Local agent/editor state and personal notes
+.claude/
+INTERVIEW_PREP.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

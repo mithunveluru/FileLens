@@ -16,9 +16,6 @@ requires explicit confirmation; nothing on disk is modified silently.
 
 ![File Lens hero screenshot](docs/images/hero.png)
 
-> Note: screenshots are placeholders. The images referenced throughout this
-> document live under `docs/images/` and will be added in a future release.
-
 ---
 
 ## Overview
@@ -68,12 +65,20 @@ File Lens addresses this with three ideas:
   a rescan.
 
 **Analysis**
-- A read-only rule engine flags large files, old files, installers, temporary or
-  partial downloads, and likely duplicates.
+- A read-only rule engine flags large files, old files, installers, and temporary
+  or partial downloads.
 - Each finding carries a human-readable reason.
 - The dashboard summarizes total files, total disk usage, and estimated
-  reclaimable space (counting each file once and keeping one copy per duplicate
-  group).
+  reclaimable space, counting a file flagged by several rules only once.
+
+**Duplicate detection**
+- Files are reported as duplicates only when their contents are byte-for-byte
+  identical, verified by a full BLAKE3 hash — never by name, extension, or size.
+- A staged pipeline keeps this cheap: size grouping, then a sampled fingerprint,
+  then a full hash of only the files that still collide.
+- Hashes are cached and reused while a file's size and modified time are
+  unchanged, so rescanning an untouched folder does almost no work.
+- See [docs/DUPLICATE_DETECTION.md](docs/DUPLICATE_DETECTION.md).
 
 **Cleanup**
 - Move files to the system Recycle Bin (with confirmation), ignore a
@@ -100,10 +105,6 @@ File Lens addresses this with three ideas:
   last scanned location, and launch File Lens at login (OS-level autostart).
 - All settings are persisted.
 
-> Duplicate detection currently uses a metadata heuristic (files that share an
-> exact, non-zero size) rather than content hashing. See
-> [Roadmap](#roadmap).
-
 ---
 
 ## Screenshots
@@ -111,17 +112,9 @@ File Lens addresses this with three ideas:
 | View | Preview |
 | ---- | ------- |
 | Dashboard | ![Dashboard](docs/images/dashboard.png) |
-| File scanner | ![File scanner](docs/images/scanner.png) |
-| Organization preview | ![Organization preview](docs/images/organization-preview.png) |
-| Folder organization preview | ![Folder organization preview](docs/images/folder-organization.png) |
-| Cleanup suggestions | ![Cleanup suggestions](docs/images/cleanup.png) |
-| Duplicate detection | ![Duplicate detection](docs/images/duplicates.png) |
-| Search | ![Search](docs/images/search.png) |
-| History | ![History](docs/images/history.png) |
-| File details | ![File details](docs/images/file-details.png) |
-| Settings | ![Settings](docs/images/settings.png) |
-| Dark mode | ![Dark mode](docs/images/dark-mode.png) |
-| Light mode | ![Light mode](docs/images/light-mode.png) |
+| Scanning and history | ![Scanning and history](docs/images/scanning.png) |
+| Category filter | ![Category filter](docs/images/scan-history.png) |
+| Organization plan | ![Organization plan](docs/images/organization-plan.png) |
 
 ---
 
@@ -149,8 +142,6 @@ backend owns all filesystem, database, and analysis work:
                                                               +--------------+
 ```
 
-![Architecture diagram](docs/images/architecture.png)
-
 The frontend never accesses the filesystem directly. It communicates with the
 backend only through a typed set of commands, which keeps privileged operations
 and safety checks in one place.
@@ -170,15 +161,17 @@ be unit-tested without a running app or a real filesystem.
 | `scanning` | Walks a folder into an inventory; owns scan progress and cancellation. |
 | `database` | SQLite persistence: inventory, scan history, settings, organization history. |
 | `analysis` | Read-only rule engine that flags files and computes summary totals. |
+| `dedup` | Verified duplicate detection: size grouping, fingerprint, BLAKE3 hash, cache. |
 | `cleanup` | User actions: trash, reveal, ignore/unignore, file details. |
 | `organization` | Classification, plan generation, conflict resolution, execution, and undo. |
 | `settings` | Loads and saves user configuration and applies it to scans and analysis. |
 
 The frontend is feature-first: each feature (`scan`, `analysis`, `dashboard`,
-`cleanup`, `organization`, `settings`) owns its UI and hooks, with shared
+`cleanup`, `duplicates`, `organization`, `settings`) owns its UI and hooks, with shared
 primitives and the command layer kept separate.
 
-For a deeper explanation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
+For a deeper explanation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),
+[docs/DUPLICATE_DETECTION.md](docs/DUPLICATE_DETECTION.md), and
 [docs/SMART_ORGANIZATION.md](docs/SMART_ORGANIZATION.md).
 
 ---
@@ -204,7 +197,8 @@ external state library.
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org) 20 or newer and [pnpm](https://pnpm.io) 9 or newer
+- [Node.js](https://nodejs.org) 22.13 or newer and [pnpm](https://pnpm.io) 11 or newer
+  (the pinned `packageManager` version requires it)
 - [Rust](https://rustup.rs) (stable toolchain)
 - Tauri's platform dependencies. See the
   [Tauri prerequisites guide](https://tauri.app/start/prerequisites/). On Linux
@@ -213,8 +207,8 @@ external state library.
 ### Installation
 
 ```bash
-git clone github.com/mithunveluru/FileLens
-cd file-lens
+git clone https://github.com/mithunveluru/FileLens.git
+cd FileLens
 pnpm install
 ```
 
@@ -261,6 +255,9 @@ pnpm preview    # serve the production frontend bundle
 | `pnpm typecheck` | Type-check without emitting |
 | `pnpm test` | Run frontend unit tests (Vitest) |
 
+These run on every push and pull request via
+[GitHub Actions](.github/workflows/ci.yml), together with the backend checks.
+
 Backend checks run from `src-tauri/`:
 
 ```bash
@@ -276,10 +273,15 @@ cargo test
   dependencies listed under [Prerequisites](#prerequisites).
 - **No application window appears.** The app opens a native window, so run it in a
   desktop session rather than over a plain SSH shell.
+- **The dev window renders choppily on Linux/Wayland.** Disable the WebKitGTK
+  DMA-BUF renderer for the run:
+  `WEBKIT_DISABLE_DMABUF_RENDERER=1 pnpm tauri dev`.
 - **`pnpm` reports ignored build scripts.** Build scripts are allow-listed in
   `pnpm-workspace.yaml`; run `pnpm install` again after pulling changes.
 - **Rust build runs out of disk space.** The `src-tauri/target` directory can grow
   large; `cargo clean` reclaims it.
+- **Need more detail in the logs.** Set `FILE_LENS_LOG` to `trace`, `debug`,
+  `info`, `warn`, or `error` before launching; it raises the backend log level.
 
 </details>
 
@@ -291,13 +293,13 @@ cargo test
 file-lens/
 ├── src/                      # React + TypeScript frontend
 │   ├── features/             # Feature modules: scan, analysis, dashboard,
-│   │                         #   cleanup, organization, settings
+│   │                         #   cleanup, duplicates, organization, settings
 │   ├── components/           # Shared UI primitives
 │   ├── shared/               # Types, IPC command layer, formatting, logging
 │   └── styles/               # Global styles and theme tokens
 ├── src-tauri/                # Rust backend
 │   └── src/                  # filesystem, scanning, database, analysis,
-│                             #   cleanup, organization, settings
+│                             #   dedup, cleanup, organization, settings
 ├── docs/                     # Architecture and feature documentation
 └── package.json
 ```
@@ -347,15 +349,11 @@ undergone a third-party security audit.
 
 Realistic, not-yet-implemented enhancements being considered:
 
-- Content-hash duplicate detection for higher accuracy than the current
-  size-based heuristic.
 - Windows hidden-file detection via file attributes (hidden detection currently
   keys off dotfile names).
 - An in-app About section beyond the footer version line.
 - Progress reporting for very large organization batches.
 - System-tray support with minimize-to-tray (adds a Linux runtime dependency).
-- A continuous-integration workflow running the full lint, type-check, and test
-  suite.
 
 ---
 

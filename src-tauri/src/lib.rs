@@ -10,7 +10,7 @@ mod settings;
 use analysis::commands::analyze_downloads;
 use cleanup::{file_info, ignore_path, reveal_file, trash_file, unignore_path};
 use database::Database;
-use dedup::commands::find_duplicates;
+use dedup::commands::{cancel_duplicate_scan, find_duplicates, DedupState};
 use organization::commands::{
     execute_organization_plan, generate_organization_plan, organization_history, undo_organization,
 };
@@ -34,21 +34,26 @@ fn app_info() -> AppInfo {
     }
 }
 
+fn log_level() -> log::LevelFilter {
+    std::env::var("FILE_LENS_LOG")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(log::LevelFilter::Info)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        // Frontend and backend logs share the same sinks.
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .level(log::LevelFilter::Info)
-                .build(),
-        )
+        // Frontend and backend logs share the same sinks. FILE_LENS_LOG raises
+        // verbosity for a support diagnosis without a rebuild.
+        .plugin(tauri_plugin_log::Builder::new().level(log_level()).build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
         .manage(ScanState::default())
+        .manage(DedupState::default())
         .setup(|app| {
             // A missing data dir falls back to in-memory so startup never aborts.
             let db = app
@@ -77,6 +82,7 @@ pub fn run() {
             scan_history,
             analyze_downloads,
             find_duplicates,
+            cancel_duplicate_scan,
             trash_file,
             reveal_file,
             ignore_path,

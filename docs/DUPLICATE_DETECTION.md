@@ -68,6 +68,15 @@ worker count is capped (`MAX_WORKERS`) because a hashing workload is disk-bound
 and more threads mostly thrash the drive. Because each stage regroups its results
 by key, result order does not matter and no ordering is imposed.
 
+## Cancellation and progress
+
+A run is stoppable. Workers check a shared cancel flag before taking the next
+item, so cancelling stops within one file rather than at the end of the batch.
+A cancelled report is flagged `cancelled` and its groups are partial — the UI
+says so rather than presenting them as a complete result. The hash stage emits a
+running count (`dedup:progress`) every 25 files, throttled so the IPC bridge is
+not flooded. Only one run happens at a time.
+
 ## Error handling
 
 A file that cannot be read (permission denied, deleted mid-scan, locked) is

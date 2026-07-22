@@ -1,5 +1,6 @@
-import { basename, CATEGORY_LABELS } from "@/features/dashboard/findingsView";
+import { CATEGORY_LABELS } from "@/features/dashboard/findingsView";
 import { formatBytes } from "@/shared/format/bytes";
+import { basename } from "@/shared/format/path";
 import type { Finding } from "@/shared/types";
 
 interface FindingsTableProps {

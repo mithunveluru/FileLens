@@ -48,3 +48,9 @@
 .settings-checkbox input {
   width: auto;
 }
+
+.settings-save {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
+}

@@ -29,19 +29,19 @@ CREATE TABLE IF NOT EXISTS files (
     last_scan_id INTEGER NOT NULL REFERENCES scans(id)
 );
 
--- Indexes for the queries Phase 3/4 will run (largest, oldest, by type).
+-- Indexes for the dashboard sort and filter queries.
 CREATE INDEX IF NOT EXISTS idx_files_size      ON files(size_bytes);
 CREATE INDEX IF NOT EXISTS idx_files_modified  ON files(modified_ms);
 CREATE INDEX IF NOT EXISTS idx_files_extension ON files(extension);
 CREATE INDEX IF NOT EXISTS idx_files_last_scan ON files(last_scan_id);
 
--- Key/value user settings (used from Phase 6).
+-- Key/value user settings; the app stores one JSON document under key 'app'.
 CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
 
--- Paths the user has chosen to ignore (used from Phase 5/6).
+-- Paths the user has excluded from analysis.
 CREATE TABLE IF NOT EXISTS ignored_paths (
     path       TEXT PRIMARY KEY,
     created_ms INTEGER NOT NULL

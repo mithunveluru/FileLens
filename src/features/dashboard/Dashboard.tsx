@@ -6,10 +6,11 @@ import FilePreview from "@/features/cleanup/FilePreview";
 import { useCleanup } from "@/features/cleanup/useCleanup";
 import FindingsControls from "@/features/dashboard/FindingsControls";
 import FindingsTable from "@/features/dashboard/FindingsTable";
-import { applyView, basename, type ViewOptions } from "@/features/dashboard/findingsView";
+import { applyView, type ViewOptions } from "@/features/dashboard/findingsView";
 import OverviewCards from "@/features/dashboard/OverviewCards";
 import DuplicatesPanel from "@/features/duplicates/DuplicatesPanel";
 import { formatBytes } from "@/shared/format/bytes";
+import { basename } from "@/shared/format/path";
 import type { Finding } from "@/shared/types";
 import "./Dashboard.css";
 
@@ -178,7 +179,7 @@ function Dashboard({ analysis }: DashboardProps) {
         {status === "running" ? "Refreshing…" : "Refresh analysis"}
       </button>
 
-      <DuplicatesPanel />
+      <DuplicatesPanel onInventoryChange={run} />
 
       {confirmTarget && (
         <ConfirmDialog

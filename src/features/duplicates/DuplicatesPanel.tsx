@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Spinner from "@/components/Spinner";
 import { useCleanup } from "@/features/cleanup/useCleanup";
@@ -8,15 +8,36 @@ import type { DuplicateCandidate } from "@/shared/types";
 import { useDuplicates } from "./useDuplicates";
 import "./Duplicates.css";
 
+// Groups arrive sorted by reclaimable bytes, so the first page is the payoff.
+const GROUP_PAGE = 50;
+
 function formatDate(modifiedMs: number | null): string {
   return modifiedMs === null ? "—" : new Date(modifiedMs).toLocaleDateString();
 }
 
-function DuplicatesPanel() {
-  const { status, report, error, run } = useDuplicates();
-  const cleanup = useCleanup(run);
+interface DuplicatesPanelProps {
+  /** Called after a trash, so the surrounding analysis refreshes too. */
+  onInventoryChange: () => void;
+}
+
+function DuplicatesPanel({ onInventoryChange }: DuplicatesPanelProps) {
+  const { status, progress, report, error, run, cancel } = useDuplicates();
   const [confirmTarget, setConfirmTarget] = useState<DuplicateCandidate | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [visible, setVisible] = useState(GROUP_PAGE);
+
+  // A fresh run starts back at the first page of groups.
+  const rerun = useCallback(async () => {
+    setVisible(GROUP_PAGE);
+    await run();
+  }, [run]);
+
+  const cleanup = useCleanup(
+    useCallback(() => {
+      void rerun();
+      onInventoryChange();
+    }, [rerun, onInventoryChange]),
+  );
 
   const confirmTrash = async () => {
     if (!confirmTarget) return;
@@ -38,14 +59,21 @@ function DuplicatesPanel() {
             Files are compared by content hash — only exact byte-for-byte copies are shown.
           </p>
         </div>
-        <button type="button" onClick={run} disabled={status === "running"}>
-          {status === "running" ? "Scanning…" : report ? "Rescan" : "Find duplicates"}
-        </button>
+        <div className="duplicates-actions">
+          <button type="button" onClick={rerun} disabled={status === "running"}>
+            {status === "running" ? "Scanning…" : report ? "Rescan" : "Find duplicates"}
+          </button>
+          {status === "running" && (
+            <button type="button" onClick={cancel}>
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
 
       {status === "running" && (
-        <p className="duplicates-note">
-          <Spinner /> Hashing candidates…
+        <p className="duplicates-note" aria-live="polite">
+          <Spinner /> Hashing candidates — {progress} checked
         </p>
       )}
 
@@ -66,6 +94,9 @@ function DuplicatesPanel() {
 
       {report && status !== "running" && (
         <>
+          {report.cancelled && (
+            <p className="duplicates-note">Stopped early — these results are partial.</p>
+          )}
           {report.totalGroups === 0 ? (
             <p className="duplicates-note">No duplicate files found.</p>
           ) : (
@@ -75,7 +106,7 @@ function DuplicatesPanel() {
                 {report.redundantFiles} redundant {report.redundantFiles === 1 ? "file" : "files"} ·{" "}
                 {formatBytes(report.reclaimableBytes)} reclaimable
               </p>
-              {report.groups.map((group) => (
+              {report.groups.slice(0, visible).map((group) => (
                 <div key={group.hash} className="duplicate-group">
                   <div className="duplicate-group-head">
                     {group.copies} copies · {formatBytes(group.sizeBytes)} each ·{" "}
@@ -105,6 +136,11 @@ function DuplicatesPanel() {
                   </ul>
                 </div>
               ))}
+              {report.groups.length > visible && (
+                <button type="button" onClick={() => setVisible((n) => n + GROUP_PAGE)}>
+                  Show more ({report.groups.length - visible} remaining)
+                </button>
+              )}
             </>
           )}
 

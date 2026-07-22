@@ -1,8 +1,6 @@
 import { basename } from "@/shared/format/path";
 import type { Finding, FindingCategory } from "@/shared/types";
 
-export { basename };
-
 export type SortKey = "sizeDesc" | "sizeAsc" | "name" | "oldest";
 export type CategoryFilter = FindingCategory | "all";
 

@@ -4,11 +4,12 @@
   "version": "0.1.0",
   "type": "module",
   "description": "File Lens — understand, organize, and reclaim your Downloads folder.",
+  "packageManager": "pnpm@11.1.2",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "WEBKIT_DISABLE_DMABUF_RENDERER=1 tauri",
+    "tauri": "tauri",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",

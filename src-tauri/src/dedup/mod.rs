@@ -18,25 +18,21 @@ mod hash;
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::thread;
 
 use serde::Serialize;
 
 use crate::filesystem::FileEntry;
-use cache::HashCache;
+use cache::{CacheEntry, HashCache};
 
-/// How sure we are that a group is a real duplicate set. Only `Verified` is
-/// produced today; the weaker variants are reserved for future strategies
-/// (e.g. perceptual image matching) so the model need not change to add them.
+/// How a group was established. Only content-hash verification exists today;
+/// add a variant when a strategy that is not byte-exact does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(dead_code)] // weaker variants are reserved for future match strategies
 pub enum VerificationStatus {
     Verified,
-    PossibleDuplicate,
-    SimilarMetadata,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -70,28 +66,45 @@ pub struct DuplicateReport {
     pub files_hashed: usize,
     pub cache_hits: usize,
     pub errors: Vec<String>,
+    // Set when the user stopped the run; the groups are then partial.
+    pub cancelled: bool,
 }
 
 /// Runs the full pipeline over an already-scanned inventory (the scanner and
 /// metadata extractor are reused, not rebuilt). `workers` bounds concurrency.
+/// A set `cancel` flag stops the run early and marks the report partial;
+/// `on_progress` receives the running count of files through the hash stage.
 pub fn detect_duplicates(
     files: &[FileEntry],
     cache: &dyn HashCache,
     workers: usize,
+    cancel: &AtomicBool,
+    on_progress: &(dyn Fn(usize) + Sync),
 ) -> DuplicateReport {
     let mut errors = Vec::new();
 
     let size_survivors = candidates_by_size(files);
-    let fingerprint_survivors = fingerprint_stage(size_survivors, workers, &mut errors);
-    let hashed = hash_stage(fingerprint_survivors, cache, workers, &mut errors);
+    let fingerprint_survivors = fingerprint_stage(size_survivors, workers, cancel, &mut errors);
+    let hashed = hash_stage(
+        fingerprint_survivors,
+        cache,
+        workers,
+        cancel,
+        on_progress,
+        &mut errors,
+    );
 
     build_report(
         hashed.groups,
         hashed.files_hashed,
         hashed.cache_hits,
         errors,
+        cancel.load(Ordering::Relaxed),
     )
 }
+
+// Emitting per file would flood the IPC bridge on a large candidate set.
+const PROGRESS_INTERVAL: usize = 25;
 
 // Stage 1 — candidate builder. Files with a unique size cannot have a
 // byte-identical twin, so only size collisions survive. Zero-byte files are
@@ -113,9 +126,10 @@ fn candidates_by_size(files: &[FileEntry]) -> Vec<&FileEntry> {
 fn fingerprint_stage<'a>(
     candidates: Vec<&'a FileEntry>,
     workers: usize,
+    cancel: &AtomicBool,
     errors: &mut Vec<String>,
 ) -> Vec<&'a FileEntry> {
-    let fingerprints = parallel_map(candidates, workers, |file| {
+    let fingerprints = parallel_map(candidates, workers, cancel, |file| {
         (
             file,
             fingerprint::fingerprint(Path::new(&file.path), file.size_bytes),
@@ -148,36 +162,58 @@ fn hash_stage(
     candidates: Vec<&FileEntry>,
     cache: &dyn HashCache,
     workers: usize,
+    cancel: &AtomicBool,
+    on_progress: &(dyn Fn(usize) + Sync),
     errors: &mut Vec<String>,
 ) -> Hashed {
     let hashed_count = AtomicUsize::new(0);
     let cache_hits = AtomicUsize::new(0);
+    let processed = AtomicUsize::new(0);
 
-    let results = parallel_map(candidates, workers, |file| {
-        let outcome = match cache.get(&file.path, file.size_bytes, file.modified_ms) {
+    let results = parallel_map(candidates, workers, cancel, |file| {
+        let done = processed.fetch_add(1, Ordering::Relaxed) + 1;
+        if done.is_multiple_of(PROGRESS_INTERVAL) {
+            on_progress(done);
+        }
+        match cache.get(&file.path, file.size_bytes, file.modified_ms) {
             Some(cached) => {
                 cache_hits.fetch_add(1, Ordering::Relaxed);
-                Ok(cached)
+                (file, Ok(cached), true)
             }
-            None => hash::hash_file(Path::new(&file.path)).inspect(|digest| {
-                hashed_count.fetch_add(1, Ordering::Relaxed);
-                cache.put(&file.path, file.size_bytes, file.modified_ms, digest);
-            }),
-        };
-        (file, outcome)
+            None => {
+                let outcome = hash::hash_file(Path::new(&file.path));
+                if outcome.is_ok() {
+                    hashed_count.fetch_add(1, Ordering::Relaxed);
+                }
+                (file, outcome, false)
+            }
+        }
     });
 
     let mut groups: HashMap<String, Vec<DuplicateCandidate>> = HashMap::new();
-    for (file, outcome) in results {
+    let mut fresh: Vec<CacheEntry> = Vec::new();
+    for (file, outcome, was_cached) in results {
         match outcome {
-            Ok(hash) => groups.entry(hash).or_default().push(DuplicateCandidate {
-                path: file.path.clone(),
-                size_bytes: file.size_bytes,
-                modified_ms: file.modified_ms,
-            }),
+            Ok(hash) => {
+                if !was_cached {
+                    fresh.push((
+                        file.path.clone(),
+                        file.size_bytes,
+                        file.modified_ms,
+                        hash.clone(),
+                    ));
+                }
+                groups.entry(hash).or_default().push(DuplicateCandidate {
+                    path: file.path.clone(),
+                    size_bytes: file.size_bytes,
+                    modified_ms: file.modified_ms,
+                });
+            }
             Err(err) => errors.push(format!("{}: {err}", file.path)),
         }
     }
+    // Written once, outside the parallel loop, so workers never wait on the DB.
+    cache.put_many(&fresh);
 
     Hashed {
         groups,
@@ -191,6 +227,7 @@ fn build_report(
     files_hashed: usize,
     cache_hits: usize,
     errors: Vec<String>,
+    cancelled: bool,
 ) -> DuplicateReport {
     let mut groups: Vec<DuplicateGroup> = hash_groups
         .into_iter()
@@ -219,13 +256,14 @@ fn build_report(
         files_hashed,
         cache_hits,
         errors,
+        cancelled,
         groups,
     }
 }
 
 // A bounded worker pool: `workers` threads drain a shared queue. Result order is
 // not preserved because every stage regroups by key afterwards.
-fn parallel_map<T, R, F>(items: Vec<T>, workers: usize, f: F) -> Vec<R>
+fn parallel_map<T, R, F>(items: Vec<T>, workers: usize, cancel: &AtomicBool, f: F) -> Vec<R>
 where
     T: Send,
     R: Send,
@@ -241,6 +279,9 @@ where
     thread::scope(|scope| {
         for _ in 0..workers {
             scope.spawn(|| loop {
+                if cancel.load(Ordering::Relaxed) {
+                    break;
+                }
                 let next = queue.lock().expect("queue mutex poisoned").next();
                 match next {
                     Some(item) => {
@@ -285,8 +326,12 @@ mod tests {
         entry(path.to_str().unwrap(), bytes.len() as u64, Some(1))
     }
 
+    fn detect(files: &[FileEntry], cache: &dyn HashCache, workers: usize) -> DuplicateReport {
+        detect_duplicates(files, cache, workers, &AtomicBool::new(false), &|_| {})
+    }
+
     fn run(files: &[FileEntry]) -> DuplicateReport {
-        detect_duplicates(files, &MemoryCache::default(), 4)
+        detect(files, &MemoryCache::default(), 4)
     }
 
     #[test]
@@ -361,11 +406,11 @@ mod tests {
         let b = write(dir.path(), "b", b"cache me");
         let cache = MemoryCache::default();
 
-        let first = detect_duplicates(&[a.clone(), b.clone()], &cache, 2);
+        let first = detect(&[a.clone(), b.clone()], &cache, 2);
         assert_eq!(first.files_hashed, 2);
         assert_eq!(first.cache_hits, 0);
 
-        let second = detect_duplicates(&[a, b], &cache, 2);
+        let second = detect(&[a, b], &cache, 2);
         assert_eq!(second.files_hashed, 0);
         assert_eq!(second.cache_hits, 2);
         assert_eq!(second.total_groups, 1);
@@ -379,12 +424,12 @@ mod tests {
         let cache = MemoryCache::default();
 
         let v1 = entry(path.to_str().unwrap(), 8, Some(1));
-        detect_duplicates(&[v1], &cache, 1);
+        detect(&[v1], &cache, 1);
 
         // Same path, new size and mtime -> cache must not match.
         fs::write(&path, b"the file has grown").unwrap();
         let v2 = entry(path.to_str().unwrap(), 18, Some(2));
-        let report = detect_duplicates(&[v2], &cache, 1);
+        let report = detect(&[v2], &cache, 1);
         assert_eq!(report.cache_hits, 0);
     }
 
@@ -400,6 +445,44 @@ mod tests {
         assert_eq!(report.errors.len(), 1);
         assert_eq!(report.total_groups, 1);
         assert_eq!(report.groups[0].copies, 2);
+    }
+
+    #[test]
+    fn a_cancelled_run_is_flagged_and_reports_no_groups() {
+        let dir = tempfile::tempdir().unwrap();
+        let a = write(dir.path(), "a", b"twins");
+        let b = write(dir.path(), "b", b"twins");
+
+        let report = detect_duplicates(
+            &[a, b],
+            &MemoryCache::default(),
+            2,
+            &AtomicBool::new(true),
+            &|_| {},
+        );
+
+        assert!(report.cancelled);
+        assert_eq!(report.total_groups, 0);
+    }
+
+    #[test]
+    fn progress_is_reported_during_hashing() {
+        let dir = tempfile::tempdir().unwrap();
+        let payload = vec![3u8; 64];
+        let files: Vec<FileEntry> = (0..PROGRESS_INTERVAL * 2)
+            .map(|i| write(dir.path(), &format!("f{i}"), &payload))
+            .collect();
+        let seen = Mutex::new(Vec::new());
+
+        detect_duplicates(
+            &files,
+            &MemoryCache::default(),
+            2,
+            &AtomicBool::new(false),
+            &|n| seen.lock().unwrap().push(n),
+        );
+
+        assert!(!seen.into_inner().unwrap().is_empty());
     }
 
     #[test]
