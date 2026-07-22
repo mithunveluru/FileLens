@@ -1,6 +1,5 @@
 import { useState } from "react";
-import "@/components/modal.css";
-import { useModalA11y } from "@/components/useModalA11y";
+import Modal from "@/components/Modal";
 import "./SettingsModal.css";
 import type { Settings } from "@/shared/types";
 
@@ -19,7 +18,6 @@ const linesToArray = (text: string): string[] =>
 function SettingsModal({ settings, onSave, onClose }: SettingsModalProps) {
   const [form, setForm] = useState<Settings>(settings);
   const [saving, setSaving] = useState(false);
-  const ref = useModalA11y(onClose);
 
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -34,67 +32,82 @@ function SettingsModal({ settings, onSave, onClose }: SettingsModalProps) {
   };
 
   return (
-    <div className="modal-backdrop">
-      <div
-        className="modal settings-modal"
-        ref={ref}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Settings"
-      >
-        <h2>Settings</h2>
-
-        <label>
-          Downloads folder
-          <input
-            type="text"
-            placeholder="Leave empty to use the system Downloads folder"
-            value={form.downloadsFolder ?? ""}
-            onChange={(e) => set("downloadsFolder", e.currentTarget.value || null)}
-          />
-        </label>
-
-        <div className="settings-row">
+    <Modal
+      title="Settings"
+      wide
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="button" className="btn-primary" onClick={submit} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </>
+      }
+    >
+      {/* Grouped into sections — it was one undifferentiated column of inputs. */}
+      <div className="settings-body">
+        <section className="settings-section">
+          <h3 className="section-label">Location</h3>
           <label>
-            Old after (days)
+            Downloads folder
             <input
-              type="number"
-              min={1}
-              value={form.ageThresholdDays}
-              onChange={(e) => set("ageThresholdDays", Number(e.currentTarget.value) || 1)}
+              type="text"
+              placeholder="Leave empty to use the system Downloads folder"
+              value={form.downloadsFolder ?? ""}
+              onChange={(e) => set("downloadsFolder", e.currentTarget.value || null)}
+            />
+          </label>
+        </section>
+
+        <section className="settings-section">
+          <h3 className="section-label">What counts as clutter</h3>
+          <div className="settings-row">
+            <label>
+              Old after (days)
+              <input
+                type="number"
+                min={1}
+                value={form.ageThresholdDays}
+                onChange={(e) => set("ageThresholdDays", Number(e.currentTarget.value) || 1)}
+              />
+            </label>
+            <label>
+              Large file size (MB)
+              <input
+                type="number"
+                min={1}
+                value={form.largeFileMinMb}
+                onChange={(e) => set("largeFileMinMb", Number(e.currentTarget.value) || 1)}
+              />
+            </label>
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <h3 className="section-label">Ignore rules</h3>
+          <label>
+            Ignored folders (one per line)
+            <textarea
+              rows={3}
+              value={form.ignoredFolders.join("\n")}
+              onChange={(e) => set("ignoredFolders", linesToArray(e.currentTarget.value))}
             />
           </label>
           <label>
-            Large file size (MB)
-            <input
-              type="number"
-              min={1}
-              value={form.largeFileMinMb}
-              onChange={(e) => set("largeFileMinMb", Number(e.currentTarget.value) || 1)}
+            Ignored extensions (one per line)
+            <textarea
+              rows={2}
+              value={form.ignoredExtensions.join("\n")}
+              onChange={(e) => set("ignoredExtensions", linesToArray(e.currentTarget.value))}
             />
           </label>
-        </div>
+        </section>
 
-        <label>
-          Ignored folders (one per line)
-          <textarea
-            rows={3}
-            value={form.ignoredFolders.join("\n")}
-            onChange={(e) => set("ignoredFolders", linesToArray(e.currentTarget.value))}
-          />
-        </label>
-
-        <label>
-          Ignored extensions (one per line)
-          <textarea
-            rows={2}
-            value={form.ignoredExtensions.join("\n")}
-            onChange={(e) => set("ignoredExtensions", linesToArray(e.currentTarget.value))}
-          />
-        </label>
-
-        <div className="settings-row">
+        <section className="settings-section">
+          <h3 className="section-label">Appearance & startup</h3>
           <label>
             Theme
             <select
@@ -106,6 +119,7 @@ function SettingsModal({ settings, onSave, onClose }: SettingsModalProps) {
               <option value="dark">Dark</option>
             </select>
           </label>
+
           <label className="settings-checkbox">
             <input
               type="checkbox"
@@ -114,36 +128,27 @@ function SettingsModal({ settings, onSave, onClose }: SettingsModalProps) {
             />
             Scan on startup
           </label>
-        </div>
 
-        <label className="settings-checkbox">
-          <input
-            type="checkbox"
-            checked={form.launchOnStartup}
-            onChange={(e) => set("launchOnStartup", e.currentTarget.checked)}
-          />
-          Launch File Lens when I log in
-        </label>
+          <label className="settings-checkbox">
+            <input
+              type="checkbox"
+              checked={form.launchOnStartup}
+              onChange={(e) => set("launchOnStartup", e.currentTarget.checked)}
+            />
+            Launch File Lens when I log in
+          </label>
 
-        <label className="settings-checkbox">
-          <input
-            type="checkbox"
-            checked={form.rememberLastScanLocation}
-            onChange={(e) => set("rememberLastScanLocation", e.currentTarget.checked)}
-          />
-          Remember the last scanned location
-        </label>
-
-        <div className="modal-actions">
-          <button type="button" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="button" className="settings-save" onClick={submit} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
-          </button>
-        </div>
+          <label className="settings-checkbox">
+            <input
+              type="checkbox"
+              checked={form.rememberLastScanLocation}
+              onChange={(e) => set("rememberLastScanLocation", e.currentTarget.checked)}
+            />
+            Remember the last scanned location
+          </label>
+        </section>
       </div>
-    </div>
+    </Modal>
   );
 }
 

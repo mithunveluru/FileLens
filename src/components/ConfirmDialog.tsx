@@ -1,5 +1,4 @@
-import { useModalA11y } from "@/components/useModalA11y";
-import "./modal.css";
+import Modal from "@/components/Modal";
 
 interface ConfirmDialogProps {
   title: string;
@@ -18,30 +17,22 @@ function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  const ref = useModalA11y(onCancel);
-
   return (
-    <div className="modal-backdrop">
-      <div
-        className="modal"
-        ref={ref}
-        tabIndex={-1}
-        role="alertdialog"
-        aria-modal="true"
-        aria-label={title}
-      >
-        <h2>{title}</h2>
-        <p>{message}</p>
-        <div className="modal-actions">
+    <Modal
+      title={title}
+      description={message}
+      onClose={onCancel}
+      footer={
+        <>
           <button type="button" onClick={onCancel}>
             Cancel
           </button>
-          <button type="button" className={danger ? "danger" : ""} onClick={onConfirm}>
+          <button type="button" className={danger ? "danger" : "btn-primary"} onClick={onConfirm}>
             {confirmLabel}
           </button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 }
 

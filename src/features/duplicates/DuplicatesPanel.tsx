@@ -1,6 +1,12 @@
+import { AnimatePresence, motion } from "framer-motion";
+import { CheckCircle2, Copy, FolderOpen, ScanSearch, Trash2, X } from "lucide-react";
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
+import Chip from "@/components/Chip";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import RowActions from "@/components/RowActions";
 import Spinner from "@/components/Spinner";
+import Tip from "@/components/Tip";
 import { useCleanup } from "@/features/cleanup/useCleanup";
 import { formatBytes } from "@/shared/format/bytes";
 import { basename } from "@/shared/format/path";
@@ -23,7 +29,6 @@ interface DuplicatesPanelProps {
 function DuplicatesPanel({ onInventoryChange }: DuplicatesPanelProps) {
   const { status, progress, report, error, run, cancel } = useDuplicates();
   const [confirmTarget, setConfirmTarget] = useState<DuplicateCandidate | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [visible, setVisible] = useState(GROUP_PAGE);
 
   // A fresh run starts back at the first page of groups.
@@ -41,12 +46,15 @@ function DuplicatesPanel({ onInventoryChange }: DuplicatesPanelProps) {
 
   const confirmTrash = async () => {
     if (!confirmTarget) return;
-    const { path } = confirmTarget;
+    const { path, sizeBytes } = confirmTarget;
     setConfirmTarget(null);
     try {
       await cleanup.trash(path);
+      toast.success(`Moved ${basename(path)} to the Recycle Bin`, {
+        description: `${formatBytes(sizeBytes)} reclaimed.`,
+      });
     } catch (cause) {
-      setActionError(String(cause));
+      toast.error(String(cause));
     }
   };
 
@@ -60,14 +68,16 @@ function DuplicatesPanel({ onInventoryChange }: DuplicatesPanelProps) {
           </p>
         </div>
         <div className="duplicates-actions">
-          <button type="button" onClick={rerun} disabled={status === "running"}>
-            {status === "running" ? "Scanning…" : report ? "Rescan" : "Find duplicates"}
-          </button>
           {status === "running" && (
             <button type="button" onClick={cancel}>
+              <X />
               Cancel
             </button>
           )}
+          <button type="button" onClick={rerun} disabled={status === "running"}>
+            {status === "running" ? <Spinner /> : <ScanSearch />}
+            {status === "running" ? "Scanning…" : report ? "Rescan" : "Find duplicates"}
+          </button>
         </div>
       </div>
 
@@ -78,17 +88,8 @@ function DuplicatesPanel({ onInventoryChange }: DuplicatesPanelProps) {
       )}
 
       {status === "error" && (
-        <p className="dashboard-error" role="alert">
-          {error}
-        </p>
-      )}
-
-      {actionError && (
-        <p className="dashboard-error" role="alert">
-          {actionError}{" "}
-          <button type="button" onClick={() => setActionError(null)}>
-            Dismiss
-          </button>
+        <p className="banner banner-danger" role="alert">
+          <span>{error}</span>
         </p>
       )}
 
@@ -98,41 +99,56 @@ function DuplicatesPanel({ onInventoryChange }: DuplicatesPanelProps) {
             <p className="duplicates-note">Stopped early — these results are partial.</p>
           )}
           {report.totalGroups === 0 ? (
-            <p className="duplicates-note">No duplicate files found.</p>
+            <div className="empty">
+              <CheckCircle2 />
+              <p className="empty-title">No duplicates</p>
+              <p>Every file in your Downloads folder is unique.</p>
+            </div>
           ) : (
             <>
               <p className="duplicates-summary">
                 {report.totalGroups} duplicate {report.totalGroups === 1 ? "set" : "sets"} ·{" "}
                 {report.redundantFiles} redundant {report.redundantFiles === 1 ? "file" : "files"} ·{" "}
-                {formatBytes(report.reclaimableBytes)} reclaimable
+                <strong>{formatBytes(report.reclaimableBytes)}</strong> reclaimable
               </p>
               {report.groups.slice(0, visible).map((group) => (
                 <div key={group.hash} className="duplicate-group">
                   <div className="duplicate-group-head">
-                    {group.copies} copies · {formatBytes(group.sizeBytes)} each ·{" "}
-                    {formatBytes(group.reclaimableBytes)} reclaimable
+                    <Chip tone="violet" Icon={Copy}>
+                      {group.copies} copies
+                    </Chip>
+                    <span>
+                      {formatBytes(group.sizeBytes)} each · {formatBytes(group.reclaimableBytes)}{" "}
+                      reclaimable
+                    </span>
                   </div>
                   <ul>
-                    {group.files.map((file) => (
-                      <li key={file.path}>
-                        <span className="duplicate-file" title={file.path}>
-                          {basename(file.path)}
-                        </span>
-                        <span className="duplicate-date">{formatDate(file.modifiedMs)}</span>
-                        <span className="duplicate-actions">
-                          <button type="button" onClick={() => cleanup.reveal(file.path)}>
-                            Open
-                          </button>
-                          <button
-                            type="button"
-                            className="danger"
-                            onClick={() => setConfirmTarget(file)}
-                          >
-                            Trash
-                          </button>
-                        </span>
-                      </li>
-                    ))}
+                    <AnimatePresence initial={false}>
+                      {group.files.map((file) => (
+                        <motion.li key={file.path} layout exit={{ opacity: 0, x: -16 }}>
+                          <Tip content={file.path}>
+                            <span className="duplicate-file">{basename(file.path)}</span>
+                          </Tip>
+                          <span className="duplicate-date">{formatDate(file.modifiedMs)}</span>
+                          <RowActions
+                            label={basename(file.path)}
+                            actions={[
+                              {
+                                label: "Show in folder",
+                                Icon: FolderOpen,
+                                onSelect: () => cleanup.reveal(file.path),
+                              },
+                              {
+                                label: "Move to Recycle Bin",
+                                Icon: Trash2,
+                                onSelect: () => setConfirmTarget(file),
+                                danger: true,
+                              },
+                            ]}
+                          />
+                        </motion.li>
+                      ))}
+                    </AnimatePresence>
                   </ul>
                 </div>
               ))}

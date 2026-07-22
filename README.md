@@ -82,8 +82,10 @@ File Lens addresses this with three ideas:
 
 **Cleanup**
 - Move files to the system Recycle Bin (with confirmation), ignore a
-  recommendation (with undo), reveal a file in the system file manager, and view
-  full file details.
+  recommendation, reveal a file in the system file manager, and view full file
+  details.
+- Ignoring a file raises a toast with **Undo** attached, so reversing the action
+  never means hunting for a separate control.
 
 **Smart Organization**
 - Classify loose files into category folders (Documents, Images, Videos, Audio,
@@ -98,6 +100,22 @@ File Lens addresses this with three ideas:
   database while a fresh scan runs in the background; the dashboard refreshes
   when it completes. Scanning is asynchronous and never blocks the window.
 
+**Interface**
+- A semantic colour system: every finding category and destination folder has its
+  own tone and icon, so a column of results is scannable before it is read.
+  Colour marks meaning — status, conflicts, the reclaimable total — rather than
+  decorating.
+- Light and dark themes share one set of design tokens; the palette is defined
+  once and every surface, tint, and pill derives from it.
+- Accessible dialogs, menus, and tooltips built on
+  [Radix](https://www.radix-ui.com) primitives: real focus traps, full keyboard
+  navigation, and correct ARIA wiring.
+- Loading skeletons that mirror the final layout, illustrated empty states, and
+  non-intrusive toasts for feedback.
+- Motion is used sparingly and honours `prefers-reduced-motion`: rows animate out
+  when trashed, the workflow indicator slides between tabs, and views
+  cross-fade.
+
 **Settings**
 - Configure the Downloads folder, age and large-file thresholds, ignored folders
   and extensions, and theme (system, light, or dark).
@@ -109,12 +127,30 @@ File Lens addresses this with three ideas:
 
 ## Screenshots
 
-| View | Preview |
-| ---- | ------- |
-| Dashboard | ![Dashboard](docs/images/dashboard.png) |
-| Scanning and history | ![Scanning and history](docs/images/scanning.png) |
-| Category filter | ![Category filter](docs/images/scan-history.png) |
-| Organization plan | ![Organization plan](docs/images/organization-plan.png) |
+**Cleanup findings** — every finding carries a colour-coded category and a
+plain-language reason. Row actions collapse into a single menu.
+
+![Cleanup findings](docs/images/cleanup-findings.png)
+
+**Verified duplicates** — grouped by content hash, with the reclaimable total
+per group.
+
+![Verified duplicates](docs/images/duplicates.png)
+
+**Organize** — the plan summary counts what will move, where it will go, and how
+many naming conflicts need a decision.
+
+![Organize overview](docs/images/organize-overview.png)
+
+**Organization plan** — an editable table of proposed moves. Change a
+destination, skip a file, or resolve a conflict; the execute bar follows you down
+the page and the session lands in the history below, ready to undo.
+
+![Organization plan](docs/images/organization-plan.png)
+
+**Confirmation** — nothing touches the filesystem without an explicit yes.
+
+![Confirmation dialog](docs/images/confirm-dialog.png)
 
 ---
 
@@ -183,13 +219,18 @@ For a deeper explanation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),
 | [Tauri 2](https://tauri.app) | Desktop shell | Native windows with a Rust backend and a small footprint; keeps the UI sandboxed from the filesystem. |
 | Rust | Backend logic | Memory safety and strong typing for the code that touches user files. |
 | React 19 + TypeScript | Frontend | A typed, component-based UI with a large ecosystem. |
+| [Radix UI](https://www.radix-ui.com) | Accessible primitives | Unstyled dialog, dropdown, and tooltip behaviour — focus management and ARIA done correctly, styled entirely by the project's own CSS. |
+| [Lucide](https://lucide.dev) | Icons | Consistent, tree-shakeable icon set; only the icons actually imported are bundled. |
+| [Framer Motion](https://motion.dev) | Animation | Exit animations and shared-layout transitions that CSS alone cannot express. Hover and press states remain plain CSS. |
+| [Sonner](https://sonner.emilkowal.ski) | Toasts | Compact, themeable notifications that carry their own actions, such as Undo. |
 | [Vite](https://vitejs.dev) | Build tooling | Fast dev server and bundling, and the basis for testing. |
 | SQLite (via `rusqlite`, bundled) | Storage | Embedded, zero-configuration persistence with no external service; the bundled build needs no system SQLite. |
 | [Biome](https://biomejs.dev) | Lint + format | A single fast tool for both, replacing ESLint and Prettier. |
 | [Vitest](https://vitest.dev) | Frontend tests | Vite-native test runner for the pure frontend logic. |
 
 State management uses React's built-in hooks and composition; there is no
-external state library.
+external state library. Styling is plain CSS with custom properties — no CSS-in-JS
+and no utility-class framework — so the design tokens stay readable in one file.
 
 ---
 
@@ -294,9 +335,11 @@ file-lens/
 ├── src/                      # React + TypeScript frontend
 │   ├── features/             # Feature modules: scan, analysis, dashboard,
 │   │                         #   cleanup, duplicates, organization, settings
-│   ├── components/           # Shared UI primitives
-│   ├── shared/               # Types, IPC command layer, formatting, logging
-│   └── styles/               # Global styles and theme tokens
+│   ├── components/           # Shared UI primitives: Modal, RowActions, Tip,
+│   │                         #   Chip, Spinner
+│   ├── shared/               # Types, IPC command layer, formatting, logging,
+│   │                         #   ui/ (category and folder tone mapping)
+│   └── styles/               # Global styles, design tokens, and the tone palette
 ├── src-tauri/                # Rust backend
 │   └── src/                  # filesystem, scanning, database, analysis,
 │                             #   dedup, cleanup, organization, settings
@@ -321,6 +364,13 @@ These principles are reflected in the current codebase:
   typed command boundary between them.
 - **Modular, feature-first design.** Code is grouped by feature, not by technical
   layer.
+- **One source of truth for the visual language.** Colour, spacing, radius, and
+  elevation are declared as tokens in `src/styles/global.css`; feature stylesheets
+  handle layout only. A category's colour is defined once and applies everywhere
+  it appears.
+- **Accessibility as a baseline.** Keyboard navigation, visible focus, correct
+  ARIA roles, and reduced-motion support are treated as requirements, not
+  polish.
 
 ---
 
