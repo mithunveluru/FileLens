@@ -5,10 +5,28 @@ use std::path::{Component, Path, PathBuf};
 
 use super::{conflict, ActionStatus, OrganizationAction};
 
-// The `..` guard matters because the plan crosses an untrusted IPC boundary:
-// `Path::starts_with` alone would accept `<root>/../escape`.
+// The plan crosses an untrusted IPC boundary, so containment is checked three
+// ways: no `..` component, and the deepest ancestor that exists must resolve
+// inside the real root. Canonicalizing catches a symlink that points outside,
+// which a lexical `starts_with` would accept.
 fn is_safe_descendant(root: &Path, path: &Path) -> bool {
-    path.starts_with(root) && !path.components().any(|c| c == Component::ParentDir)
+    if path.components().any(|c| c == Component::ParentDir) || !path.starts_with(root) {
+        return false;
+    }
+    let Ok(root) = root.canonicalize() else {
+        return false;
+    };
+    // A destination may not exist yet; walk up to the first component that does.
+    let mut probe = path;
+    loop {
+        if let Ok(real) = probe.canonicalize() {
+            return real.starts_with(&root);
+        }
+        match probe.parent() {
+            Some(parent) => probe = parent,
+            None => return false,
+        }
+    }
 }
 
 pub struct ExecutedMove {
@@ -286,6 +304,31 @@ mod tests {
         assert_eq!(report.failed, 1);
         assert!(source.exists());
         assert!(!escaping.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn refuses_a_symlink_that_escapes_the_root() {
+        use std::os::unix::fs::symlink;
+
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let outside = tempfile::tempdir().unwrap();
+        let target = outside.path().join("secret.txt");
+        fs::write(&target, b"x").unwrap();
+        let link = root.join("secret.txt");
+        symlink(&target, &link).unwrap();
+
+        let report = execute(
+            root,
+            &[action(
+                link.to_str().unwrap(),
+                root.join("Documents/secret.txt").to_str().unwrap(),
+            )],
+        );
+
+        assert_eq!(report.failed, 1);
+        assert!(target.exists());
     }
 
     #[test]
