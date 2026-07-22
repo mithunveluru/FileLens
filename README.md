@@ -16,9 +16,6 @@ requires explicit confirmation; nothing on disk is modified silently.
 
 ![File Lens hero screenshot](docs/images/hero.png)
 
-> Note: screenshots are placeholders. The images referenced throughout this
-> document live under `docs/images/` and will be added in a future release.
-
 ---
 
 ## Overview
@@ -115,17 +112,9 @@ File Lens addresses this with three ideas:
 | View | Preview |
 | ---- | ------- |
 | Dashboard | ![Dashboard](docs/images/dashboard.png) |
-| File scanner | ![File scanner](docs/images/scanner.png) |
-| Organization preview | ![Organization preview](docs/images/organization-preview.png) |
-| Folder organization preview | ![Folder organization preview](docs/images/folder-organization.png) |
-| Cleanup suggestions | ![Cleanup suggestions](docs/images/cleanup.png) |
-| Duplicate detection | ![Duplicate detection](docs/images/duplicates.png) |
-| Search | ![Search](docs/images/search.png) |
-| History | ![History](docs/images/history.png) |
-| File details | ![File details](docs/images/file-details.png) |
-| Settings | ![Settings](docs/images/settings.png) |
-| Dark mode | ![Dark mode](docs/images/dark-mode.png) |
-| Light mode | ![Light mode](docs/images/light-mode.png) |
+| Scanning and history | ![Scanning and history](docs/images/scanning.png) |
+| Category filter | ![Category filter](docs/images/scan-history.png) |
+| Organization plan | ![Organization plan](docs/images/organization-plan.png) |
 
 ---
 
@@ -152,8 +141,6 @@ backend owns all filesystem, database, and analysis work:
                                                               |   SQLite     |
                                                               +--------------+
 ```
-
-![Architecture diagram](docs/images/architecture.png)
 
 The frontend never accesses the filesystem directly. It communicates with the
 backend only through a typed set of commands, which keeps privileged operations
