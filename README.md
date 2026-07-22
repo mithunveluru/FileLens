@@ -254,6 +254,9 @@ pnpm preview    # serve the production frontend bundle
 | `pnpm typecheck` | Type-check without emitting |
 | `pnpm test` | Run frontend unit tests (Vitest) |
 
+These run on every push and pull request via
+[GitHub Actions](.github/workflows/ci.yml), together with the backend checks.
+
 Backend checks run from `src-tauri/`:
 
 ```bash
@@ -348,8 +351,6 @@ Realistic, not-yet-implemented enhancements being considered:
 - An in-app About section beyond the footer version line.
 - Progress reporting for very large organization batches.
 - System-tray support with minimize-to-tray (adds a Linux runtime dependency).
-- A continuous-integration workflow running the full lint, type-check, and test
-  suite.
 
 ---
 
