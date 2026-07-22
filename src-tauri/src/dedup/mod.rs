@@ -25,7 +25,7 @@ use std::thread;
 use serde::Serialize;
 
 use crate::filesystem::FileEntry;
-use cache::HashCache;
+use cache::{CacheEntry, HashCache};
 
 /// How sure we are that a group is a real duplicate set. Only `Verified` is
 /// produced today; the weaker variants are reserved for future strategies
@@ -179,30 +179,45 @@ fn hash_stage(
         if done.is_multiple_of(PROGRESS_INTERVAL) {
             on_progress(done);
         }
-        let outcome = match cache.get(&file.path, file.size_bytes, file.modified_ms) {
+        match cache.get(&file.path, file.size_bytes, file.modified_ms) {
             Some(cached) => {
                 cache_hits.fetch_add(1, Ordering::Relaxed);
-                Ok(cached)
+                (file, Ok(cached), true)
             }
-            None => hash::hash_file(Path::new(&file.path)).inspect(|digest| {
-                hashed_count.fetch_add(1, Ordering::Relaxed);
-                cache.put(&file.path, file.size_bytes, file.modified_ms, digest);
-            }),
-        };
-        (file, outcome)
+            None => {
+                let outcome = hash::hash_file(Path::new(&file.path));
+                if outcome.is_ok() {
+                    hashed_count.fetch_add(1, Ordering::Relaxed);
+                }
+                (file, outcome, false)
+            }
+        }
     });
 
     let mut groups: HashMap<String, Vec<DuplicateCandidate>> = HashMap::new();
-    for (file, outcome) in results {
+    let mut fresh: Vec<CacheEntry> = Vec::new();
+    for (file, outcome, was_cached) in results {
         match outcome {
-            Ok(hash) => groups.entry(hash).or_default().push(DuplicateCandidate {
-                path: file.path.clone(),
-                size_bytes: file.size_bytes,
-                modified_ms: file.modified_ms,
-            }),
+            Ok(hash) => {
+                if !was_cached {
+                    fresh.push((
+                        file.path.clone(),
+                        file.size_bytes,
+                        file.modified_ms,
+                        hash.clone(),
+                    ));
+                }
+                groups.entry(hash).or_default().push(DuplicateCandidate {
+                    path: file.path.clone(),
+                    size_bytes: file.size_bytes,
+                    modified_ms: file.modified_ms,
+                });
+            }
             Err(err) => errors.push(format!("{}: {err}", file.path)),
         }
     }
+    // Written once, outside the parallel loop, so workers never wait on the DB.
+    cache.put_many(&fresh);
 
     Hashed {
         groups,

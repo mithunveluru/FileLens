@@ -126,6 +126,11 @@ impl Database {
                 "DELETE FROM files WHERE last_scan_id != ?1",
                 params![scan_id],
             )?;
+            // Hashes for files that no longer exist would accumulate forever.
+            tx.execute(
+                "DELETE FROM hash_cache WHERE path NOT IN (SELECT path FROM files)",
+                [],
+            )?;
         }
 
         tx.commit()?;
@@ -327,6 +332,33 @@ impl Database {
         Ok(())
     }
 
+    pub fn store_hashes(
+        &self,
+        entries: &[(String, u64, Option<i64>, String)],
+        algo: &str,
+    ) -> rusqlite::Result<()> {
+        if entries.is_empty() {
+            return Ok(());
+        }
+        let mut conn = self.conn.lock().expect("db mutex poisoned");
+        let tx = conn.transaction()?;
+        {
+            let mut stmt = tx.prepare(
+                "INSERT INTO hash_cache (path, size_bytes, modified_ms, algo, hash)
+                 VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT(path) DO UPDATE SET
+                    size_bytes = excluded.size_bytes,
+                    modified_ms = excluded.modified_ms,
+                    algo = excluded.algo,
+                    hash = excluded.hash",
+            )?;
+            for (path, size_bytes, modified_ms, hash) in entries {
+                stmt.execute(params![path, *size_bytes as i64, modified_ms, algo, hash])?;
+            }
+        }
+        tx.commit()
+    }
+
     pub fn scan_history(&self, limit: i64) -> rusqlite::Result<Vec<ScanRecord>> {
         let conn = self.conn.lock().expect("db mutex poisoned");
         let mut stmt = conn.prepare(
@@ -519,6 +551,63 @@ mod tests {
 
         db.remove_ignored("/dl/a").unwrap();
         assert_eq!(db.ignored_paths().unwrap(), vec!["/dl/b".to_string()]);
+    }
+
+    #[test]
+    fn complete_rescan_prunes_orphaned_hash_cache_rows() {
+        let db = Database::in_memory();
+        db.persist_scan(
+            "/dl",
+            1,
+            2,
+            &outcome(vec![file("/dl/a", 1), file("/dl/b", 2)], false),
+        )
+        .unwrap();
+        db.store_hash("/dl/a", 1, Some(1), "blake3", "hash-a")
+            .unwrap();
+        db.store_hash("/dl/b", 2, Some(1), "blake3", "hash-b")
+            .unwrap();
+
+        db.persist_scan("/dl", 3, 4, &outcome(vec![file("/dl/a", 1)], false))
+            .unwrap();
+
+        assert_eq!(
+            db.cached_hash("/dl/a", 1, Some(1), "blake3")
+                .unwrap()
+                .as_deref(),
+            Some("hash-a")
+        );
+        assert!(db
+            .cached_hash("/dl/b", 2, Some(1), "blake3")
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn stores_a_batch_of_hashes_in_one_transaction() {
+        let db = Database::in_memory();
+        db.store_hashes(
+            &[
+                ("/dl/a".to_string(), 1, Some(1), "hash-a".to_string()),
+                ("/dl/b".to_string(), 2, Some(2), "hash-b".to_string()),
+            ],
+            "blake3",
+        )
+        .unwrap();
+
+        assert_eq!(
+            db.cached_hash("/dl/a", 1, Some(1), "blake3")
+                .unwrap()
+                .as_deref(),
+            Some("hash-a")
+        );
+        assert_eq!(
+            db.cached_hash("/dl/b", 2, Some(2), "blake3")
+                .unwrap()
+                .as_deref(),
+            Some("hash-b")
+        );
+        db.store_hashes(&[], "blake3").unwrap();
     }
 
     #[test]
