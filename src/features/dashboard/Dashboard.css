@@ -1,51 +1,32 @@
 .dashboard {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
   width: 100%;
-  max-width: 56rem;
   text-align: left;
 }
 
-.dashboard-note,
-.dashboard-error {
-  margin: 0;
-  color: var(--muted);
-}
-
-.dashboard-loading {
+.dashboard-head {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
-.dashboard-error {
-  color: var(--danger);
+.dashboard-head h2 {
+  margin: 0;
+}
+
+.dashboard-sub {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
 }
 
 .overview-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem;
-}
-
-.overview-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-
-.overview-value {
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.overview-label {
-  font-size: 0.8rem;
-  color: var(--muted);
+  gap: 0.85rem;
 }
 
 .findings-controls {
@@ -54,43 +35,58 @@
   gap: 0.5rem;
 }
 
-.findings-controls input,
-.findings-controls select {
-  padding: 0.45rem 0.6rem;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  font: inherit;
-  background: transparent;
-  color: inherit;
-}
-
-.findings-controls input[type="search"] {
+/* Search input with a leading icon; the icon is decorative, the input owns
+   the accessible name. */
+.search-field {
+  position: relative;
   flex: 1;
   min-width: 12rem;
+  display: flex;
 }
 
-.findings-table-wrap {
-  overflow-x: auto;
+.search-field svg {
+  position: absolute;
+  top: 50%;
+  left: 0.65rem;
+  width: 0.95rem;
+  height: 0.95rem;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
 }
 
-.findings-table {
+.search-field input {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 0.88rem;
+  padding-left: 2.1rem;
 }
 
-.findings-table th,
-.findings-table td {
-  text-align: left;
-  padding: 0.45rem 0.6rem;
-  border-bottom: 1px solid var(--border);
+/* Long names stay on one line; the full path lives in the tooltip. */
+.findings-name {
+  max-width: 18rem;
 }
 
-.findings-table td:first-child {
-  max-width: 16rem;
+.findings-name span {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 520;
+  cursor: default;
+}
+
+.findings-reason {
+  color: var(--muted);
+}
+
+.findings-num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Collapsed to a single menu trigger, so the column only needs its own width. */
+.findings-actions {
+  width: 1%;
+  text-align: right;
 }
 
 .dashboard-pagination {
@@ -99,73 +95,34 @@
   justify-content: center;
   gap: 1rem;
   font-size: 0.85rem;
+  color: var(--muted);
 }
 
-.dashboard button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.5em 1em;
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-  background: transparent;
-  color: inherit;
-}
-
-.dashboard button:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
-/* Scoped under .dashboard to outrank the transparent-bordered `.dashboard button` rule. */
-.dashboard .dashboard-refresh {
-  align-self: center;
-  border-color: var(--border);
-}
-
-.findings-actions {
+/* Loading placeholder that mirrors the real layout. */
+.dashboard-skeleton {
   display: flex;
-  gap: 0.25rem;
-  white-space: nowrap;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
-.findings-actions button {
-  padding: 0.2em 0.5em;
-  font-size: 0.8rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
+.dashboard-skeleton .overview-cards .skeleton {
+  height: 4.7rem;
+  border-radius: var(--radius-lg);
 }
 
-.findings-actions button.danger {
-  border-color: transparent;
-  background: var(--danger);
-  color: #fff;
+.dashboard-skeleton-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
 }
 
-.dashboard-undo {
-  margin: 0;
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  font-size: 0.9rem;
-}
-
-.dashboard-error button,
-.dashboard-undo button {
-  padding: 0.15em 0.6em;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-@media (max-width: 36rem) {
+@media (max-width: 40rem) {
   .overview-cards {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

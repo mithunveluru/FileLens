@@ -11,7 +11,7 @@ function ScanHistory({ refreshToken }: ScanHistoryProps) {
 
   return (
     <section className="scan-history">
-      <h2>Recent scans</h2>
+      <h2 className="section-label">Recent scans</h2>
       <ul>
         {scans.map((scan) => (
           <li key={scan.id}>

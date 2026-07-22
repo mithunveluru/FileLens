@@ -1,3 +1,4 @@
+import { Search } from "lucide-react";
 import {
   CATEGORY_LABELS,
   type CategoryFilter,
@@ -22,13 +23,16 @@ const SORT_LABELS: Record<SortKey, string> = {
 function FindingsControls({ options, categories, onChange }: FindingsControlsProps) {
   return (
     <div className="findings-controls">
-      <input
-        type="search"
-        aria-label="Search findings by name or path"
-        placeholder="Search by name or path…"
-        value={options.search}
-        onChange={(e) => onChange({ search: e.currentTarget.value })}
-      />
+      <div className="search-field">
+        <Search aria-hidden="true" />
+        <input
+          type="search"
+          aria-label="Search findings by name or path"
+          placeholder="Search by name or path…"
+          value={options.search}
+          onChange={(e) => onChange({ search: e.currentTarget.value })}
+        />
+      </div>
 
       <select
         aria-label="Filter by category"

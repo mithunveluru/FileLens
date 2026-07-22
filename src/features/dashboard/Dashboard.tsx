@@ -1,4 +1,6 @@
+import { RefreshCw, SearchX, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Spinner from "@/components/Spinner";
 import type { AnalysisController } from "@/features/analysis/useAnalysis";
@@ -32,8 +34,6 @@ function Dashboard({ analysis }: DashboardProps) {
   const [view, setView] = useState<ViewOptions>(INITIAL_VIEW);
   const [confirmTarget, setConfirmTarget] = useState<Finding | null>(null);
   const [previewPath, setPreviewPath] = useState<string | null>(null);
-  const [lastIgnored, setLastIgnored] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
 
   const viewResult = useMemo(
     () => (report ? applyView(report.findings, view) : null),
@@ -44,55 +44,65 @@ function Dashboard({ analysis }: DashboardProps) {
   const updateView = (patch: Partial<ViewOptions>) =>
     setView((current) => ({ ...current, page: 0, ...patch }));
 
+  // Undo rides along in the toast, so it is attached to the action that
+  // caused it rather than parked in a banner above the table.
   const handleIgnore = async (path: string) => {
     try {
       await cleanup.ignore(path);
-      setLastIgnored(path);
+      toast.success(`Ignored ${basename(path)}`, {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            cleanup.unignore(path).catch((cause) => toast.error(String(cause)));
+          },
+        },
+      });
     } catch (cause) {
-      setActionError(String(cause));
-    }
-  };
-
-  const handleUndoIgnore = async () => {
-    if (!lastIgnored) return;
-    try {
-      await cleanup.unignore(lastIgnored);
-      setLastIgnored(null);
-    } catch (cause) {
-      setActionError(String(cause));
+      toast.error(String(cause));
     }
   };
 
   const confirmTrash = async () => {
     if (!confirmTarget) return;
-    const { path } = confirmTarget;
+    const { path, sizeBytes } = confirmTarget;
     setConfirmTarget(null);
     try {
       await cleanup.trash(path);
+      toast.success(`Moved ${basename(path)} to the Recycle Bin`, {
+        description: `${formatBytes(sizeBytes)} reclaimed — restore it from the Recycle Bin if needed.`,
+      });
     } catch (cause) {
-      setActionError(String(cause));
+      toast.error(String(cause));
     }
   };
 
   if (status === "error") {
     return (
       <section className="dashboard">
-        <p className="dashboard-error" role="alert">
-          {error}
+        <p className="banner banner-danger" role="alert">
+          <span>{error}</span>
+          <button type="button" className="btn-sm" onClick={run}>
+            Try again
+          </button>
         </p>
-        <button type="button" onClick={run}>
-          Try again
-        </button>
       </section>
     );
   }
 
   if (!report || !viewResult) {
+    // Skeleton mirrors the loaded layout so nothing jumps when data lands.
     return (
-      <section className="dashboard">
-        <p className="dashboard-loading dashboard-note">
-          <Spinner /> Analyzing your Downloads…
-        </p>
+      <section className="dashboard dashboard-skeleton" aria-busy="true" aria-label="Loading">
+        <div className="overview-cards">
+          <div className="skeleton" />
+          <div className="skeleton" />
+          <div className="skeleton" />
+        </div>
+        <div className="dashboard-skeleton-rows">
+          {[80, 95, 70, 90, 60].map((width) => (
+            <div key={width} className="skeleton" style={{ width: `${width}%` }} />
+          ))}
+        </div>
       </section>
     );
   }
@@ -101,28 +111,25 @@ function Dashboard({ analysis }: DashboardProps) {
 
   return (
     <section className="dashboard">
+      <div className="dashboard-head">
+        <div>
+          <h2>Cleanup findings</h2>
+          <p className="dashboard-sub">Files worth a second look, largest payoff first.</p>
+        </div>
+        <button type="button" onClick={run} disabled={status === "running"}>
+          {status === "running" ? <Spinner /> : <RefreshCw />}
+          {status === "running" ? "Refreshing…" : "Refresh analysis"}
+        </button>
+      </div>
+
       <OverviewCards summary={report.summary} />
 
-      {actionError && (
-        <p className="dashboard-error" role="alert">
-          {actionError}{" "}
-          <button type="button" onClick={() => setActionError(null)}>
-            Dismiss
-          </button>
-        </p>
-      )}
-
-      {lastIgnored && (
-        <p className="dashboard-undo">
-          Ignored {basename(lastIgnored)}.{" "}
-          <button type="button" onClick={handleUndoIgnore}>
-            Undo
-          </button>
-        </p>
-      )}
-
       {report.findings.length === 0 ? (
-        <p className="dashboard-note">Nothing to clean up — your Downloads look tidy.</p>
+        <div className="empty">
+          <Sparkles />
+          <p className="empty-title">Nothing to clean up</p>
+          <p>Your Downloads folder is already tidy.</p>
+        </div>
       ) : (
         <>
           <FindingsControls
@@ -132,10 +139,14 @@ function Dashboard({ analysis }: DashboardProps) {
           />
 
           {total === 0 ? (
-            <p className="dashboard-note">No files match your filters.</p>
+            <div className="empty">
+              <SearchX />
+              <p className="empty-title">No matches</p>
+              <p>No files match your current search and filters.</p>
+            </div>
           ) : (
             <>
-              <div className="findings-table-wrap">
+              <div className="table-wrap">
                 <FindingsTable
                   rows={rows}
                   onInfo={setPreviewPath}
@@ -169,15 +180,6 @@ function Dashboard({ analysis }: DashboardProps) {
           )}
         </>
       )}
-
-      <button
-        type="button"
-        className="dashboard-refresh"
-        onClick={run}
-        disabled={status === "running"}
-      >
-        {status === "running" ? "Refreshing…" : "Refresh analysis"}
-      </button>
 
       <DuplicatesPanel onInventoryChange={run} />
 

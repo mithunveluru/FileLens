@@ -1,4 +1,6 @@
+import { FolderCheck, PackageCheck, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Spinner from "@/components/Spinner";
 import OrganizationHistory from "@/features/organization/OrganizationHistory";
@@ -8,43 +10,56 @@ import { useOrganizationPlan } from "@/features/organization/useOrganizationPlan
 import "./Organization.css";
 
 function OrganizationView() {
-  const {
-    status,
-    plan,
-    result,
-    error,
-    generate,
-    execute,
-    dismissResult,
-    setStatus,
-    setStrategy,
-    setCategory,
-  } = useOrganizationPlan();
+  const { status, plan, result, error, generate, execute, setStatus, setStrategy, setCategory } =
+    useOrganizationPlan();
   const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     void generate();
   }, [generate]);
 
+  // The execution summary arrives as a toast rather than a banner the user has
+  // to dismiss. `result` still drives the history refresh, so it is left in state.
+  useEffect(() => {
+    if (!result) return;
+    const summary = `Moved ${result.moved} file${result.moved === 1 ? "" : "s"}`;
+    const detail = [
+      result.skipped > 0 && `${result.skipped} skipped`,
+      result.failed > 0 && `${result.failed} failed`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    if (result.failed > 0) {
+      toast.error(summary, { description: detail });
+    } else {
+      toast.success(summary, { description: detail || undefined });
+    }
+  }, [result]);
+
   if (status === "error") {
     return (
       <section className="organization">
-        <p className="org-error" role="alert">
-          {error}
+        <p className="banner banner-danger" role="alert">
+          <span>{error}</span>
+          <button type="button" className="btn-sm" onClick={generate}>
+            Try again
+          </button>
         </p>
-        <button type="button" onClick={generate}>
-          Try again
-        </button>
       </section>
     );
   }
 
   if (!plan) {
     return (
-      <section className="organization">
+      <section className="organization" aria-busy="true" aria-label="Loading">
         <p className="org-loading">
           <Spinner /> Building your organization plan…
         </p>
+        <div className="org-cards">
+          <div className="skeleton" style={{ height: "4.7rem" }} />
+          <div className="skeleton" style={{ height: "4.7rem" }} />
+          <div className="skeleton" style={{ height: "4.7rem" }} />
+        </div>
       </section>
     );
   }
@@ -62,25 +77,17 @@ function OrganizationView() {
           </p>
         </div>
         <button type="button" onClick={generate} disabled={executing}>
+          <RefreshCw />
           Rebuild plan
         </button>
       </header>
 
-      {result && (
-        <p className="org-result" role="status">
-          Moved {result.moved} file{result.moved === 1 ? "" : "s"}
-          {result.skipped > 0 && `, skipped ${result.skipped}`}
-          {result.failed > 0 && `, ${result.failed} failed`}.{" "}
-          <button type="button" onClick={dismissResult}>
-            Dismiss
-          </button>
-        </p>
-      )}
-
       {plan.actions.length === 0 ? (
-        <p className="org-note">
-          Nothing to organize — there are no loose files in your Downloads root.
-        </p>
+        <div className="empty">
+          <FolderCheck />
+          <p className="empty-title">Nothing to organize</p>
+          <p>There are no loose files in your Downloads root.</p>
+        </div>
       ) : (
         <>
           <PlanSummaryCards summary={plan.summary} accepted={accepted} />
@@ -91,9 +98,14 @@ function OrganizationView() {
             onStatus={setStatus}
           />
           <div className="org-execute">
+            <p className="org-execute-hint">
+              {accepted === 0
+                ? "Tick at least one file to run the plan."
+                : `${accepted} of ${plan.actions.length} files selected.`}
+            </p>
             <button
               type="button"
-              className="org-primary"
+              className="btn-primary"
               disabled={executing || accepted === 0}
               onClick={() => setConfirming(true)}
             >
@@ -102,7 +114,10 @@ function OrganizationView() {
                   <Spinner label="Organizing" /> Organizing…
                 </>
               ) : (
-                `Execute plan (${accepted})`
+                <>
+                  <PackageCheck />
+                  Execute plan ({accepted})
+                </>
               )}
             </button>
           </div>

@@ -1,3 +1,4 @@
+import { Files, HardDrive, Sparkles } from "lucide-react";
 import { formatBytes } from "@/shared/format/bytes";
 import type { AnalysisSummary } from "@/shared/types";
 
@@ -7,19 +8,31 @@ interface OverviewCardsProps {
 
 function OverviewCards({ summary }: OverviewCardsProps) {
   const cards = [
-    { label: "Total files", value: summary.totalFiles.toLocaleString() },
-    { label: "Disk usage", value: formatBytes(summary.totalBytes) },
-    { label: "Reclaimable", value: formatBytes(summary.reclaimableBytes) },
+    { label: "Total files", value: summary.totalFiles.toLocaleString(), Icon: Files },
+    { label: "Disk usage", value: formatBytes(summary.totalBytes), Icon: HardDrive },
   ];
 
   return (
     <div className="overview-cards">
-      {cards.map((card) => (
-        <div key={card.label} className="overview-card">
-          <span className="overview-value">{card.value}</span>
-          <span className="overview-label">{card.label}</span>
+      {cards.map(({ label, value, Icon }) => (
+        <div key={label} className="stat">
+          <span className="stat-value">{value}</span>
+          <span className="stat-label">
+            <Icon />
+            {label}
+          </span>
         </div>
       ))}
+
+      {/* Reclaimable is the number the whole app exists to produce, so it gets
+          the gradient treatment rather than sitting level with the others. */}
+      <div className="stat stat-hero">
+        <span className="stat-value">{formatBytes(summary.reclaimableBytes)}</span>
+        <span className="stat-label">
+          <Sparkles />
+          Reclaimable
+        </span>
+      </div>
     </div>
   );
 }
