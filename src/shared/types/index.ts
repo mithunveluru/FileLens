@@ -50,6 +50,7 @@ export interface DuplicateReport {
   filesHashed: number;
   cacheHits: number;
   errors: string[];
+  cancelled: boolean;
 }
 
 export interface Finding {

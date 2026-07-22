@@ -10,7 +10,7 @@ mod settings;
 use analysis::commands::analyze_downloads;
 use cleanup::{file_info, ignore_path, reveal_file, trash_file, unignore_path};
 use database::Database;
-use dedup::commands::find_duplicates;
+use dedup::commands::{cancel_duplicate_scan, find_duplicates, DedupState};
 use organization::commands::{
     execute_organization_plan, generate_organization_plan, organization_history, undo_organization,
 };
@@ -49,6 +49,7 @@ pub fn run() {
             None,
         ))
         .manage(ScanState::default())
+        .manage(DedupState::default())
         .setup(|app| {
             // A missing data dir falls back to in-memory so startup never aborts.
             let db = app
@@ -77,6 +78,7 @@ pub fn run() {
             scan_history,
             analyze_downloads,
             find_duplicates,
+            cancel_duplicate_scan,
             trash_file,
             reveal_file,
             ignore_path,

@@ -30,6 +30,8 @@ export const analyzeDownloads = (): Promise<AnalysisReport> =>
 export const findDuplicates = (): Promise<DuplicateReport> =>
   call<DuplicateReport>("find_duplicates");
 
+export const cancelDuplicateScan = (): Promise<void> => call<void>("cancel_duplicate_scan");
+
 export const trashFile = (path: string): Promise<void> => call<void>("trash_file", { path });
 
 export const revealFile = (path: string): Promise<void> => call<void>("reveal_file", { path });

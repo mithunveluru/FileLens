@@ -18,7 +18,7 @@ interface DuplicatesPanelProps {
 }
 
 function DuplicatesPanel({ onInventoryChange }: DuplicatesPanelProps) {
-  const { status, report, error, run } = useDuplicates();
+  const { status, progress, report, error, run, cancel } = useDuplicates();
   const cleanup = useCleanup(
     useCallback(() => {
       void run();
@@ -48,14 +48,21 @@ function DuplicatesPanel({ onInventoryChange }: DuplicatesPanelProps) {
             Files are compared by content hash — only exact byte-for-byte copies are shown.
           </p>
         </div>
-        <button type="button" onClick={run} disabled={status === "running"}>
-          {status === "running" ? "Scanning…" : report ? "Rescan" : "Find duplicates"}
-        </button>
+        <div className="duplicates-actions">
+          <button type="button" onClick={run} disabled={status === "running"}>
+            {status === "running" ? "Scanning…" : report ? "Rescan" : "Find duplicates"}
+          </button>
+          {status === "running" && (
+            <button type="button" onClick={cancel}>
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
 
       {status === "running" && (
-        <p className="duplicates-note">
-          <Spinner /> Hashing candidates…
+        <p className="duplicates-note" aria-live="polite">
+          <Spinner /> Hashing candidates — {progress} checked
         </p>
       )}
 
@@ -76,6 +83,9 @@ function DuplicatesPanel({ onInventoryChange }: DuplicatesPanelProps) {
 
       {report && status !== "running" && (
         <>
+          {report.cancelled && (
+            <p className="duplicates-note">Stopped early — these results are partial.</p>
+          )}
           {report.totalGroups === 0 ? (
             <p className="duplicates-note">No duplicate files found.</p>
           ) : (

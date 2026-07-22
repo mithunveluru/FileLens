@@ -207,6 +207,7 @@ the OS application entries; `tauri-plugin-autostart` provides login autostart.
 | `scan_history`   | call      | Return the most recent persisted scans.         |
 | `analyze_downloads` | call   | Run the analysis engine; returns findings + summary totals. |
 | `find_duplicates` | call    | Run the duplicate pipeline; returns verified groups + stats. |
+| `cancel_duplicate_scan` | call | Request cancellation of the running duplicate scan. |
 | `trash_file`     | call      | Move a Downloads file to the OS Recycle Bin.    |
 | `reveal_file`    | call      | Reveal a file in the system file manager.       |
 | `ignore_path` / `unignore_path` | call | Exclude / restore a path in analysis. |
@@ -216,10 +217,11 @@ the OS application entries; `tauri-plugin-autostart` provides login autostart.
 | `execute_organization_plan` | call | Execute an approved plan (moves files). |
 | `organization_history` / `undo_organization` | call | List sessions / reverse one. |
 | `scan:progress`  | event     | Running file count, emitted during a scan.      |
+| `dedup:progress` | event     | Running candidate count, emitted during hashing. |
 
 Safety invariants enforced in the backend: symlinks are never followed,
-unreadable entries are logged and skipped (never fatal), and only one scan runs
-at a time.
+unreadable entries are logged and skipped (never fatal), and only one scan and
+one duplicate run happen at a time.
 
 ## Cross-cutting decisions
 
