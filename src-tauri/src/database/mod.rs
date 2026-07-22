@@ -145,6 +145,8 @@ impl Database {
         Ok(scan_id)
     }
 
+    // Unbounded by design: the dashboard filters and searches client-side, and
+    // the scanner's MAX_FILES caps the table. Paginate here if that cap rises.
     pub fn list_files(&self) -> rusqlite::Result<Vec<FileEntry>> {
         let conn = self.conn();
         let mut stmt = conn.prepare(

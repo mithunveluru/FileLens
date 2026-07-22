@@ -206,8 +206,8 @@ external state library.
 ### Installation
 
 ```bash
-git clone github.com/mithunveluru/FileLens
-cd file-lens
+git clone https://github.com/mithunveluru/FileLens.git
+cd FileLens
 pnpm install
 ```
 
