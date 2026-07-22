@@ -8,6 +8,9 @@ import type { DuplicateCandidate } from "@/shared/types";
 import { useDuplicates } from "./useDuplicates";
 import "./Duplicates.css";
 
+// Groups arrive sorted by reclaimable bytes, so the first page is the payoff.
+const GROUP_PAGE = 50;
+
 function formatDate(modifiedMs: number | null): string {
   return modifiedMs === null ? "—" : new Date(modifiedMs).toLocaleDateString();
 }
@@ -19,14 +22,22 @@ interface DuplicatesPanelProps {
 
 function DuplicatesPanel({ onInventoryChange }: DuplicatesPanelProps) {
   const { status, progress, report, error, run, cancel } = useDuplicates();
-  const cleanup = useCleanup(
-    useCallback(() => {
-      void run();
-      onInventoryChange();
-    }, [run, onInventoryChange]),
-  );
   const [confirmTarget, setConfirmTarget] = useState<DuplicateCandidate | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [visible, setVisible] = useState(GROUP_PAGE);
+
+  // A fresh run starts back at the first page of groups.
+  const rerun = useCallback(async () => {
+    setVisible(GROUP_PAGE);
+    await run();
+  }, [run]);
+
+  const cleanup = useCleanup(
+    useCallback(() => {
+      void rerun();
+      onInventoryChange();
+    }, [rerun, onInventoryChange]),
+  );
 
   const confirmTrash = async () => {
     if (!confirmTarget) return;
@@ -49,7 +60,7 @@ function DuplicatesPanel({ onInventoryChange }: DuplicatesPanelProps) {
           </p>
         </div>
         <div className="duplicates-actions">
-          <button type="button" onClick={run} disabled={status === "running"}>
+          <button type="button" onClick={rerun} disabled={status === "running"}>
             {status === "running" ? "Scanning…" : report ? "Rescan" : "Find duplicates"}
           </button>
           {status === "running" && (
@@ -95,7 +106,7 @@ function DuplicatesPanel({ onInventoryChange }: DuplicatesPanelProps) {
                 {report.redundantFiles} redundant {report.redundantFiles === 1 ? "file" : "files"} ·{" "}
                 {formatBytes(report.reclaimableBytes)} reclaimable
               </p>
-              {report.groups.map((group) => (
+              {report.groups.slice(0, visible).map((group) => (
                 <div key={group.hash} className="duplicate-group">
                   <div className="duplicate-group-head">
                     {group.copies} copies · {formatBytes(group.sizeBytes)} each ·{" "}
@@ -125,6 +136,11 @@ function DuplicatesPanel({ onInventoryChange }: DuplicatesPanelProps) {
                   </ul>
                 </div>
               ))}
+              {report.groups.length > visible && (
+                <button type="button" onClick={() => setVisible((n) => n + GROUP_PAGE)}>
+                  Show more ({report.groups.length - visible} remaining)
+                </button>
+              )}
             </>
           )}
 
