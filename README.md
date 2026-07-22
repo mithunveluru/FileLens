@@ -276,6 +276,9 @@ cargo test
   dependencies listed under [Prerequisites](#prerequisites).
 - **No application window appears.** The app opens a native window, so run it in a
   desktop session rather than over a plain SSH shell.
+- **The dev window renders choppily on Linux/Wayland.** Disable the WebKitGTK
+  DMA-BUF renderer for the run:
+  `WEBKIT_DISABLE_DMABUF_RENDERER=1 pnpm tauri dev`.
 - **`pnpm` reports ignored build scripts.** Build scripts are allow-listed in
   `pnpm-workspace.yaml`; run `pnpm install` again after pulling changes.
 - **Rust build runs out of disk space.** The `src-tauri/target` directory can grow
