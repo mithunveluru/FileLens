@@ -138,7 +138,7 @@ function SettingsModal({ settings, onSave, onClose }: SettingsModalProps) {
           <button type="button" onClick={onClose}>
             Cancel
           </button>
-          <button type="button" className="danger" onClick={submit} disabled={saving}>
+          <button type="button" className="settings-save" onClick={submit} disabled={saving}>
             {saving ? "Saving…" : "Save"}
           </button>
         </div>
