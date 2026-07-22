@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { basename } from "@/shared/format/path";
 import type { Finding } from "@/shared/types";
-import { applyView, basename, type ViewOptions } from "./findingsView";
+import { applyView, type ViewOptions } from "./findingsView";
 
 const finding = (
   path: string,
