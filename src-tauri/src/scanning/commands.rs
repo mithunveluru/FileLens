@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use log::warn;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, State};
 
 use super::{scan, ScanOutcome};
 use crate::database::{now_ms, Database, ScanRecord};
@@ -36,7 +36,7 @@ pub async fn scan_downloads(
     scan_state: State<'_, ScanState>,
     db: State<'_, Database>,
 ) -> Result<ScanOutcome, String> {
-    let root = resolve_root(&app, &db)?;
+    let root = settings::commands::active_root(&app, &db)?;
 
     if scan_state.running.swap(true, Ordering::SeqCst) {
         return Err("A scan is already running.".into());
@@ -79,16 +79,6 @@ pub fn cancel_scan(state: State<'_, ScanState>) {
 pub fn scan_history(db: State<'_, Database>, limit: i64) -> Result<Vec<ScanRecord>, String> {
     let limit = limit.clamp(1, MAX_HISTORY_LIMIT);
     db.scan_history(limit).map_err(|err| err.to_string())
-}
-
-fn resolve_root(app: &AppHandle, db: &Database) -> Result<PathBuf, String> {
-    let os_default = app.path().download_dir().map_err(|err| err.to_string())?;
-    let settings = settings::load(db).map_err(|err| err.to_string())?;
-    let remembered = db
-        .get_setting(settings::LAST_SCAN_LOCATION_KEY)
-        .ok()
-        .flatten();
-    settings::resolve_root(&settings, remembered.as_deref(), os_default)
 }
 
 async fn run_scan(app: &AppHandle, state: &ScanState, root: PathBuf) -> Result<ScanRun, String> {

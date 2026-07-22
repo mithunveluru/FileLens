@@ -3,11 +3,12 @@
 use std::path::Path;
 
 use log::warn;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
 
 use crate::database::Database;
 use crate::filesystem::FileEntry;
+use crate::settings;
 
 // Both paths must already be absolute (canonicalized) for this to be safe.
 fn is_within(root: &Path, path: &Path) -> bool {
@@ -16,10 +17,8 @@ fn is_within(root: &Path, path: &Path) -> bool {
 
 #[tauri::command]
 pub fn trash_file(app: AppHandle, db: State<'_, Database>, path: String) -> Result<(), String> {
-    let root = app
-        .path()
-        .download_dir()
-        .map_err(|err| err.to_string())?
+    // Same root the scan used, so a configured folder is trashable.
+    let root = settings::commands::active_root(&app, &db)?
         .canonicalize()
         .map_err(|err| err.to_string())?;
     let target = Path::new(&path)

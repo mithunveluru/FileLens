@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 
 use super::{execution, planner, ExecutionResult, OrganizationPlan, UndoResult};
 use crate::database::{Database, OrganizationSessionRecord};
@@ -8,23 +8,13 @@ use crate::settings;
 
 const MAX_HISTORY_LIMIT: i64 = 100;
 
-fn resolve_root(app: &AppHandle, db: &Database) -> Result<std::path::PathBuf, String> {
-    let os_default = app.path().download_dir().map_err(|err| err.to_string())?;
-    let settings = settings::load(db).map_err(|err| err.to_string())?;
-    let remembered = db
-        .get_setting(settings::LAST_SCAN_LOCATION_KEY)
-        .ok()
-        .flatten();
-    settings::resolve_root(&settings, remembered.as_deref(), os_default)
-}
-
 // Read-only: never modifies the filesystem.
 #[tauri::command]
 pub fn generate_organization_plan(
     app: AppHandle,
     db: State<'_, Database>,
 ) -> Result<OrganizationPlan, String> {
-    let root = resolve_root(&app, &db)?;
+    let root = settings::commands::active_root(&app, &db)?;
     let files = db.list_files().map_err(|err| err.to_string())?;
 
     Ok(planner::build_plan(&files, &root, &|path: &Path| {
@@ -39,7 +29,7 @@ pub fn execute_organization_plan(
     db: State<'_, Database>,
     plan: OrganizationPlan,
 ) -> Result<ExecutionResult, String> {
-    let root = resolve_root(&app, &db)?;
+    let root = settings::commands::active_root(&app, &db)?;
     let report = execution::execute(&root, &plan.actions);
 
     let session_id = if report.moves.is_empty() {
@@ -84,7 +74,7 @@ pub fn undo_organization(
     db: State<'_, Database>,
     session_id: i64,
 ) -> Result<UndoResult, String> {
-    let root = resolve_root(&app, &db)?;
+    let root = settings::commands::active_root(&app, &db)?;
     let moves = db
         .organization_session_moves(session_id)
         .map_err(|err| err.to_string())?;
