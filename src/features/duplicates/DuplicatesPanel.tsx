@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Spinner from "@/components/Spinner";
 import { useCleanup } from "@/features/cleanup/useCleanup";
@@ -12,9 +12,19 @@ function formatDate(modifiedMs: number | null): string {
   return modifiedMs === null ? "—" : new Date(modifiedMs).toLocaleDateString();
 }
 
-function DuplicatesPanel() {
+interface DuplicatesPanelProps {
+  /** Called after a trash, so the surrounding analysis refreshes too. */
+  onInventoryChange: () => void;
+}
+
+function DuplicatesPanel({ onInventoryChange }: DuplicatesPanelProps) {
   const { status, report, error, run } = useDuplicates();
-  const cleanup = useCleanup(run);
+  const cleanup = useCleanup(
+    useCallback(() => {
+      void run();
+      onInventoryChange();
+    }, [run, onInventoryChange]),
+  );
   const [confirmTarget, setConfirmTarget] = useState<DuplicateCandidate | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 

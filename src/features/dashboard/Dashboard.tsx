@@ -178,7 +178,7 @@ function Dashboard({ analysis }: DashboardProps) {
         {status === "running" ? "Refreshing…" : "Refresh analysis"}
       </button>
 
-      <DuplicatesPanel />
+      <DuplicatesPanel onInventoryChange={run} />
 
       {confirmTarget && (
         <ConfirmDialog
