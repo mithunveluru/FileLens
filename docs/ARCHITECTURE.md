@@ -62,17 +62,19 @@ something to `components/`, `hooks/`, or `shared/` once a second feature needs i
 | `filesystem/` | Turns a single file on disk into a typed `FileEntry`. No directory walking. |
 | `scanning/`   | Recursively walks a folder into a `ScanOutcome`; owns the scan commands and cancel state. |
 | `database/`   | SQLite persistence (`rusqlite`, bundled): schema, scan/file upsert, history. |
-| `analysis/`   | Read-only rule engine that flags files (large, old, installer, temp, duplicate). |
+| `analysis/`   | Read-only rule engine that flags files (large, old, installer, temp). |
+| `dedup/`      | Verified duplicate detection: size grouping, sampled fingerprint, BLAKE3 hash, cache. |
 | `cleanup/`    | User actions: trash (to Recycle Bin), reveal, ignore/unignore, file info. |
 | `organization/` | Smart Organization: classify, plan, resolve conflicts, execute, undo. |
+| `settings/`   | User configuration: load/save, threshold + ignore rules applied to scan/analysis. |
 
 `scanning::scan` is deliberately Tauri-free — it takes a cancel flag and a
 progress callback — so the walk logic is unit-tested without a running app. The
 `scanning::commands` submodule wires it to IPC.
 
-| `settings/`   | User configuration: load/save, threshold + ignore rules applied to scan/analysis. |
-
-The backend module set is now complete for the planned phases.
+`settings::commands::active_root` is the single root resolver. Every command that
+reads or writes user files goes through it, so scanning, organizing, and trashing
+can never disagree about which folder is in scope.
 
 ## Persistence
 
@@ -87,18 +89,17 @@ Schema (`src-tauri/src/database/schema.sql`):
 | --------------- | ------------------------------------------------------------ |
 | `scans`         | One row per scan run — the history.                          |
 | `files`         | Current inventory; `path` is `UNIQUE` so rescans **upsert**. |
-| `settings`      | Key/value user settings (written from Phase 6).             |
-| `ignored_paths` | User-ignored paths (written from Phase 5/6).                |
+| `settings`      | Key/value user settings (one JSON document under key `app`). |
+| `ignored_paths` | Paths the user excluded from analysis.                      |
 
 Rescan strategy: each scan upserts files by path (no duplicate rows) and stamps
 `last_scan_id`. A **complete** scan then deletes files it did not see (they were
 removed from disk); a **cancelled** scan is partial and never prunes. All of
 this happens in one transaction. Indexes on `size_bytes`, `modified_ms`,
-`extension`, and `last_scan_id` support the analysis/dashboard queries to come.
+`extension`, and `last_scan_id` support the analysis and dashboard queries.
 
-The `settings` and `ignored_paths` tables are defined now (schema design is this
-phase's deliverable) but have no repository code until their feature phases —
-deliberately, to avoid unused abstractions.
+`hash_cache` stores full content hashes for duplicate detection, keyed by path.
+See [DUPLICATE_DETECTION.md](./DUPLICATE_DETECTION.md).
 
 ## Analysis engine
 
@@ -110,17 +111,15 @@ modifies anything.
 Rules are plain functions, `fn(&AnalysisInput) -> Vec<Finding>`, collected in a
 `const RULES` slice. **Adding a rule = write the function and append it to the
 array** — no traits, no registration boilerplate. Current rules: large files,
-old files, installers, temporary files, and (size-based) duplicates.
+old files, installers, and temporary files.
 
-Duplicate detection uses a metadata-only heuristic (same exact non-zero size),
-since the engine deliberately does not read file bytes; precise content-hashing
-is noted as a future scanning-phase upgrade.
+The engine never reads file bytes, so it does not detect duplicates. That is the
+`dedup` module's job, and it verifies by content hash rather than by metadata.
 
 `analyze_downloads` returns an `AnalysisReport { summary, findings }`. The
 `summary` (total files, total bytes, reclaimable bytes, per-category counts) is
 computed once in the backend so there is a single tested source of truth —
-reclaimable space counts each flagged file once and keeps one copy per duplicate
-group.
+reclaimable space counts a file flagged by several rules only once.
 
 ## Dashboard
 
@@ -207,6 +206,7 @@ the OS application entries; `tauri-plugin-autostart` provides login autostart.
 | `cancel_scan`    | call      | Request cancellation of the running scan.       |
 | `scan_history`   | call      | Return the most recent persisted scans.         |
 | `analyze_downloads` | call   | Run the analysis engine; returns findings + summary totals. |
+| `find_duplicates` | call    | Run the duplicate pipeline; returns verified groups + stats. |
 | `trash_file`     | call      | Move a Downloads file to the OS Recycle Bin.    |
 | `reveal_file`    | call      | Reveal a file in the system file manager.       |
 | `ignore_path` / `unignore_path` | call | Exclude / restore a path in analysis. |
@@ -227,8 +227,8 @@ at a time.
   plugins. Rust uses the built-in `rustfmt` and `clippy`.
 - **State management: React built-ins for now.** No Redux/Zustand until there is
   genuinely shared client state that hooks + context cannot handle cleanly.
-- **UI library: none yet.** Added only when real screens need it (Phase 4+),
-  to avoid premature dependencies.
+- **UI library: none.** Added only when a screen genuinely needs one, to avoid
+  premature dependencies.
 - **Env config: Vite's native `.env`.** No extra library; access is centralised
   and typed in `shared/config/env.ts`.
 - **Logging: `tauri-plugin-log`.** Frontend and backend logs share the same

@@ -68,12 +68,20 @@ File Lens addresses this with three ideas:
   a rescan.
 
 **Analysis**
-- A read-only rule engine flags large files, old files, installers, temporary or
-  partial downloads, and likely duplicates.
+- A read-only rule engine flags large files, old files, installers, and temporary
+  or partial downloads.
 - Each finding carries a human-readable reason.
 - The dashboard summarizes total files, total disk usage, and estimated
-  reclaimable space (counting each file once and keeping one copy per duplicate
-  group).
+  reclaimable space, counting a file flagged by several rules only once.
+
+**Duplicate detection**
+- Files are reported as duplicates only when their contents are byte-for-byte
+  identical, verified by a full BLAKE3 hash — never by name, extension, or size.
+- A staged pipeline keeps this cheap: size grouping, then a sampled fingerprint,
+  then a full hash of only the files that still collide.
+- Hashes are cached and reused while a file's size and modified time are
+  unchanged, so rescanning an untouched folder does almost no work.
+- See [docs/DUPLICATE_DETECTION.md](docs/DUPLICATE_DETECTION.md).
 
 **Cleanup**
 - Move files to the system Recycle Bin (with confirmation), ignore a
@@ -99,10 +107,6 @@ File Lens addresses this with three ideas:
 - Startup preferences: scan automatically on open (on by default), remember the
   last scanned location, and launch File Lens at login (OS-level autostart).
 - All settings are persisted.
-
-> Duplicate detection currently uses a metadata heuristic (files that share an
-> exact, non-zero size) rather than content hashing. See
-> [Roadmap](#roadmap).
 
 ---
 
@@ -170,15 +174,17 @@ be unit-tested without a running app or a real filesystem.
 | `scanning` | Walks a folder into an inventory; owns scan progress and cancellation. |
 | `database` | SQLite persistence: inventory, scan history, settings, organization history. |
 | `analysis` | Read-only rule engine that flags files and computes summary totals. |
+| `dedup` | Verified duplicate detection: size grouping, fingerprint, BLAKE3 hash, cache. |
 | `cleanup` | User actions: trash, reveal, ignore/unignore, file details. |
 | `organization` | Classification, plan generation, conflict resolution, execution, and undo. |
 | `settings` | Loads and saves user configuration and applies it to scans and analysis. |
 
 The frontend is feature-first: each feature (`scan`, `analysis`, `dashboard`,
-`cleanup`, `organization`, `settings`) owns its UI and hooks, with shared
+`cleanup`, `duplicates`, `organization`, `settings`) owns its UI and hooks, with shared
 primitives and the command layer kept separate.
 
-For a deeper explanation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
+For a deeper explanation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),
+[docs/DUPLICATE_DETECTION.md](docs/DUPLICATE_DETECTION.md), and
 [docs/SMART_ORGANIZATION.md](docs/SMART_ORGANIZATION.md).
 
 ---
@@ -294,13 +300,13 @@ cargo test
 file-lens/
 ├── src/                      # React + TypeScript frontend
 │   ├── features/             # Feature modules: scan, analysis, dashboard,
-│   │                         #   cleanup, organization, settings
+│   │                         #   cleanup, duplicates, organization, settings
 │   ├── components/           # Shared UI primitives
 │   ├── shared/               # Types, IPC command layer, formatting, logging
 │   └── styles/               # Global styles and theme tokens
 ├── src-tauri/                # Rust backend
 │   └── src/                  # filesystem, scanning, database, analysis,
-│                             #   cleanup, organization, settings
+│                             #   dedup, cleanup, organization, settings
 ├── docs/                     # Architecture and feature documentation
 └── package.json
 ```
@@ -350,8 +356,6 @@ undergone a third-party security audit.
 
 Realistic, not-yet-implemented enhancements being considered:
 
-- Content-hash duplicate detection for higher accuracy than the current
-  size-based heuristic.
 - Windows hidden-file detection via file attributes (hidden detection currently
   keys off dotfile names).
 - An in-app About section beyond the footer version line.
