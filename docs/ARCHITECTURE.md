@@ -46,7 +46,8 @@ type. Shared, cross-feature building blocks live under `shared/`.
 | `shared/ipc/`      | Typed wrappers around Tauri commands (`client.ts`, `commands.ts`).   |
 | `shared/config/`   | Typed access to build-time env config.                               |
 | `shared/logging/`  | Frontend logger (forwards to the shared log sinks).                  |
-| `styles/`          | Global styles and theme.                                             |
+| `shared/ui/`       | Presentation mapping for domain values (`tones.tsx`: category/kind → tone + icon). |
+| `styles/`          | Global styles, design tokens, and the tone palette.                  |
 
 A feature folder owns its own components, hooks, and types; it only promotes
 something to `components/` or `shared/` once a second feature needs it.
@@ -135,10 +136,12 @@ The app never permanently deletes. "Trash" uses the `trash` crate to move a
 file to the OS Recycle Bin (recoverable from there), and the backend refuses to
 trash anything outside the Downloads folder (`is_within`, unit-tested) and drops
 the file from the inventory afterwards. Trashing always requires confirmation
-via an in-app dialog (a React component — no extra dependency).
+via an in-app dialog (`components/Modal.tsx`, built on Radix Dialog).
 
 Ignoring a recommendation adds the path to `ignored_paths`; analysis excludes
-those paths, and the action is reversible (an inline **Undo**, or `unignore`).
+those paths, and the action is reversible — the confirmation toast carries an
+**Undo** action that calls `unignore`, so the reversal sits on the feedback for
+the action that caused it.
 Reveal-in-folder uses the existing opener plugin; file info is read from the
 database for a read-only preview. Action wiring lives in `useCleanup`, which
 refreshes the analysis after any inventory-changing action.
@@ -177,23 +180,56 @@ Startup logic lives in composition points, not in presentational components:
 Installer metadata and icons in `tauri.conf.json` drive the native installers and
 the OS application entries; `tauri-plugin-autostart` provides login autostart.
 
+## Design system (cross-cutting)
+
+`src/styles/global.css` is the whole visual language: tokens, base element
+styles, and shared primitives. Feature stylesheets handle layout only. The rule
+is that nothing declares a raw colour, radius, or shadow outside this file.
+
+- **Tokens:** surfaces (`--bg`, `--surface`, `--surface-2`, `--hover`), text
+  (`--fg`, `--muted`), lines (`--border`, `--border-strong`), intent
+  (`--accent`, `--danger`, `--success`, each with an `-fg`/`-soft` pair), plus
+  radius, shadow, and motion scales. Defined for light and dark (by OS
+  preference and via the `data-theme` override).
+- **Tones:** nine named tones (`slate`, `indigo`, `violet`, `blue`, `teal`,
+  `emerald`, `amber`, `orange`, `rose`) declared as `[data-tone="…"]`, each
+  carrying `--tone-rgb` (tinted at low opacity for fills) and `--tone-fg` (the
+  readable text stop, which flips in dark mode). `shared/ui/tones.tsx` maps
+  domain values to them — every `FindingCategory` and `FileKind` gets a tone and
+  an icon. **A category's colour is defined once** and applies to its table chip,
+  summary chip, and plan row together.
+- **Element base styles:** `button`, `input`/`select`/`textarea`, and
+  `.data-table` are styled once here, so every feature inherits the same
+  hover/active/disabled/focus states without redeclaring them.
+- **Primitives:** `.stat`, `.chip`, `.banner`, `.empty`, `.skeleton`,
+  `.table-wrap`, `.menu`, `.tooltip` — shared classes rather than components,
+  since they carry no behaviour.
+
 ## Polish (cross-cutting)
 
-- **Theming:** a small set of CSS custom properties (`--bg`, `--fg`,
-  `--surface`, `--border`, `--muted`, `--accent`, `--danger`) defined in
-  `global.css` for light and dark (by OS preference and via the `data-theme`
-  override). Component CSS references the tokens, so dark mode is consistent and
-  one change re-themes everything.
-- **Accessibility:** global `:focus-visible` outlines; modals share
-  `useModalA11y` (focus-in + Escape, also deduping that logic); `aria-label`s on
-  unlabeled controls; `role="alert"`/`aria-live` on errors and scan progress.
-- **Motion:** subtle modal fade/scale animations, all disabled under
-  `prefers-reduced-motion`.
+- **Accessibility:** dialogs, dropdown menus, and tooltips are built on
+  [Radix](https://www.radix-ui.com) primitives, which supply focus trapping,
+  scroll locking, Escape handling, roving-focus keyboard navigation, and ARIA
+  wiring. (This replaced a hand-rolled `useModalA11y` hook that focused the
+  dialog but did not trap focus.) Plus global `:focus-visible` outlines,
+  `aria-label`s on unlabeled controls, and `role="alert"`/`aria-live` on errors
+  and scan progress.
+- **Feedback:** transient, single-item results are toasts (`sonner`) and carry
+  their own actions, such as Undo. Persistent states that must stay on screen —
+  a failed analysis, a failed duplicate scan — remain inline `.banner` elements.
+- **Motion:** CSS handles hover, press, and modal enter. Framer Motion is used
+  only where CSS cannot reach: exit animations for rows removed by trash/ignore
+  (`AnimatePresence`), the sliding workflow indicator (`layoutId`), and the view
+  cross-fade. `<MotionConfig reducedMotion="user">` wraps the app, and the CSS
+  `prefers-reduced-motion` block neutralises durations and transforms.
 - **Performance:** the dashboard's filter/sort/paginate runs in a `useMemo`
-  keyed on report + controls.
-- **Responsive:** overview cards collapse to one column and the findings table
-  scrolls horizontally on narrow windows.
-- **Loading:** a shared `Spinner` for scan progress and analysis loading.
+  keyed on report + controls. Row actions collapse into one menu per row, so a
+  50-row page renders 50 triggers rather than 200 buttons.
+- **Responsive:** overview cards collapse to one column, the header wraps with a
+  full-width workflow switch, and wide tables scroll inside `.table-wrap`.
+- **Loading:** `Spinner` for inline progress; `.skeleton` placeholders that
+  mirror the final layout for the dashboard, organization plan, and file
+  preview, so nothing shifts when data lands.
 
 ## IPC surface
 
@@ -227,8 +263,13 @@ one duplicate run happen at a time.
   plugins. Rust uses the built-in `rustfmt` and `clippy`.
 - **State management: React built-ins for now.** No Redux/Zustand until there is
   genuinely shared client state that hooks + context cannot handle cleanly.
-- **UI library: none.** Added only when a screen genuinely needs one, to avoid
-  premature dependencies.
+- **UI libraries: behaviour, not styling.** Radix supplies accessible dialog,
+  dropdown, and tooltip *behaviour*; `lucide-react` supplies icons; `sonner`
+  supplies toasts; `framer-motion` supplies the animations CSS cannot express.
+  All styling stays in the project's own CSS. A full component framework
+  (shadcn/ui and therefore Tailwind) was deliberately **not** adopted: it would
+  mean replacing every stylesheet with utility classes to obtain design tokens
+  and primitives this codebase already has.
 - **Env config: Vite's native `.env`.** No extra library; access is centralised
   and typed in `shared/config/env.ts`.
 - **Logging: `tauri-plugin-log`.** Frontend and backend logs share the same
