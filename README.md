@@ -197,7 +197,8 @@ external state library.
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org) 20 or newer and [pnpm](https://pnpm.io) 9 or newer
+- [Node.js](https://nodejs.org) 22.13 or newer and [pnpm](https://pnpm.io) 11 or newer
+  (the pinned `packageManager` version requires it)
 - [Rust](https://rustup.rs) (stable toolchain)
 - Tauri's platform dependencies. See the
   [Tauri prerequisites guide](https://tauri.app/start/prerequisites/). On Linux
