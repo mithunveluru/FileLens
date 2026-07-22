@@ -62,7 +62,7 @@ function SettingsModal({ settings, onSave, onClose }: SettingsModalProps) {
               type="number"
               min={1}
               value={form.ageThresholdDays}
-              onChange={(e) => set("ageThresholdDays", Number(e.currentTarget.value) || 0)}
+              onChange={(e) => set("ageThresholdDays", Number(e.currentTarget.value) || 1)}
             />
           </label>
           <label>
@@ -71,7 +71,7 @@ function SettingsModal({ settings, onSave, onClose }: SettingsModalProps) {
               type="number"
               min={1}
               value={form.largeFileMinMb}
-              onChange={(e) => set("largeFileMinMb", Number(e.currentTarget.value) || 0)}
+              onChange={(e) => set("largeFileMinMb", Number(e.currentTarget.value) || 1)}
             />
           </label>
         </div>

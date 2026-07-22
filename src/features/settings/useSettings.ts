@@ -19,9 +19,9 @@ export function useSettings(): SettingsController {
       });
   }, []);
 
+  // The backend clamps invalid thresholds, so store what it actually saved.
   const save = useCallback(async (next: Settings) => {
-    await saveSettings(next);
-    setValue(next);
+    setValue(await saveSettings(next));
   }, []);
 
   return { value, save };

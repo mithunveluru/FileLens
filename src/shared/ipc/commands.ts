@@ -43,8 +43,8 @@ export const getFileInfo = (path: string): Promise<FileEntry | null> =>
 
 export const getSettings = (): Promise<Settings> => call<Settings>("get_settings");
 
-export const saveSettings = (settings: Settings): Promise<void> =>
-  call<void>("save_settings", { settings });
+export const saveSettings = (settings: Settings): Promise<Settings> =>
+  call<Settings>("save_settings", { settings });
 
 export const generateOrganizationPlan = (): Promise<OrganizationPlan> =>
   call<OrganizationPlan>("generate_organization_plan");

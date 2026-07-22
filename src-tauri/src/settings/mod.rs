@@ -49,6 +49,15 @@ impl Default for Settings {
 }
 
 impl Settings {
+    // A threshold of zero or less flags every file; clamp before persisting.
+    fn sanitized(&self) -> Settings {
+        Settings {
+            age_threshold_days: self.age_threshold_days.max(1),
+            large_file_min_mb: self.large_file_min_mb.max(1),
+            ..self.clone()
+        }
+    }
+
     pub fn analysis_config(&self) -> AnalysisConfig {
         AnalysisConfig {
             large_file_min_bytes: self.large_file_min_mb.saturating_mul(1024 * 1024),
@@ -116,10 +125,13 @@ pub fn load(db: &Database) -> rusqlite::Result<Settings> {
     })
 }
 
-pub fn save(db: &Database, settings: &Settings) -> Result<(), String> {
-    let json = serde_json::to_string(settings).map_err(|err| err.to_string())?;
+// Returns what was actually stored so the caller reflects any clamping.
+pub fn save(db: &Database, settings: &Settings) -> Result<Settings, String> {
+    let settings = settings.sanitized();
+    let json = serde_json::to_string(&settings).map_err(|err| err.to_string())?;
     db.set_setting(SETTINGS_KEY, &json)
-        .map_err(|err| err.to_string())
+        .map_err(|err| err.to_string())?;
+    Ok(settings)
 }
 
 #[cfg(test)]
@@ -149,6 +161,37 @@ mod tests {
         let config = settings.analysis_config();
         assert_eq!(config.large_file_min_bytes, 100 * 1024 * 1024);
         assert_eq!(config.old_file_max_age_days, 30);
+    }
+
+    #[test]
+    fn save_clamps_thresholds_that_would_flag_everything() {
+        let db = Database::in_memory();
+        let stored = save(
+            &db,
+            &Settings {
+                age_threshold_days: 0,
+                large_file_min_mb: 0,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        assert_eq!(stored.age_threshold_days, 1);
+        assert_eq!(stored.large_file_min_mb, 1);
+
+        let reloaded = load(&db).unwrap();
+        assert_eq!(reloaded.age_threshold_days, 1);
+        assert_eq!(reloaded.large_file_min_mb, 1);
+
+        let negative = save(
+            &db,
+            &Settings {
+                age_threshold_days: -30,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(negative.age_threshold_days, 1);
     }
 
     #[test]

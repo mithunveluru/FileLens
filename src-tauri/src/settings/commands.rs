@@ -25,10 +25,10 @@ pub fn save_settings(
     app: AppHandle,
     db: State<'_, Database>,
     settings: Settings,
-) -> Result<(), String> {
-    save(&db, &settings)?;
-    apply_launch_on_startup(&app, settings.launch_on_startup);
-    Ok(())
+) -> Result<Settings, String> {
+    let stored = save(&db, &settings)?;
+    apply_launch_on_startup(&app, stored.launch_on_startup);
+    Ok(stored)
 }
 
 // Best-effort: a failure to update the OS autostart entry is logged, not propagated.
