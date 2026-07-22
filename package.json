@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "description": "File Lens — understand, organize, and reclaim your Downloads folder.",
+  "packageManager": "pnpm@11.1.2",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
