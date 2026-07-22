@@ -25,7 +25,7 @@ export interface ScanOutcome {
 
 export type FindingCategory = "largeFile" | "oldFile" | "installer" | "temporaryFile";
 
-export type VerificationStatus = "verified" | "possibleDuplicate" | "similarMetadata";
+export type VerificationStatus = "verified";
 
 export interface DuplicateCandidate {
   path: string;

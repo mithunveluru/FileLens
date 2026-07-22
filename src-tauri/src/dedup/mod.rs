@@ -27,16 +27,12 @@ use serde::Serialize;
 use crate::filesystem::FileEntry;
 use cache::{CacheEntry, HashCache};
 
-/// How sure we are that a group is a real duplicate set. Only `Verified` is
-/// produced today; the weaker variants are reserved for future strategies
-/// (e.g. perceptual image matching) so the model need not change to add them.
+/// How a group was established. Only content-hash verification exists today;
+/// add a variant when a strategy that is not byte-exact does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(dead_code)] // weaker variants are reserved for future match strategies
 pub enum VerificationStatus {
     Verified,
-    PossibleDuplicate,
-    SimilarMetadata,
 }
 
 #[derive(Debug, Clone, Serialize)]
