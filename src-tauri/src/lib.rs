@@ -34,15 +34,19 @@ fn app_info() -> AppInfo {
     }
 }
 
+fn log_level() -> log::LevelFilter {
+    std::env::var("FILE_LENS_LOG")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(log::LevelFilter::Info)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        // Frontend and backend logs share the same sinks.
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .level(log::LevelFilter::Info)
-                .build(),
-        )
+        // Frontend and backend logs share the same sinks. FILE_LENS_LOG raises
+        // verbosity for a support diagnosis without a rebuild.
+        .plugin(tauri_plugin_log::Builder::new().level(log_level()).build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,

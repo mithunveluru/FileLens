@@ -279,6 +279,8 @@ cargo test
   `pnpm-workspace.yaml`; run `pnpm install` again after pulling changes.
 - **Rust build runs out of disk space.** The `src-tauri/target` directory can grow
   large; `cargo clean` reclaims it.
+- **Need more detail in the logs.** Set `FILE_LENS_LOG` to `trace`, `debug`,
+  `info`, `warn`, or `error` before launching; it raises the backend log level.
 
 </details>
 

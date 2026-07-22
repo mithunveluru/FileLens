@@ -232,6 +232,7 @@ one duplicate run happen at a time.
 - **Env config: Vite's native `.env`.** No extra library; access is centralised
   and typed in `shared/config/env.ts`.
 - **Logging: `tauri-plugin-log`.** Frontend and backend logs share the same
-  sinks, so there is one place to read what the app did.
+  sinks, so there is one place to read what the app did. `FILE_LENS_LOG` raises
+  the backend level at launch; `VITE_LOG_LEVEL` sets the frontend minimum.
 - **Path alias `@/` → `src/`.** Defined once in `tsconfig.json` and shared with
   Vite/Vitest via `vite-tsconfig-paths`.
