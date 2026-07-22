@@ -41,9 +41,7 @@ type. Shared, cross-feature building blocks live under `shared/`.
 | `main.tsx`         | Composition root: mounts React, loads global styles.                 |
 | `App.tsx`          | Top-level app shell.                                                  |
 | `features/`        | Self-contained feature modules (scan, analysis, cleanup, settings…). |
-| `pages/`           | Top-level routed views that compose features.                        |
 | `components/`      | Reusable, presentational UI primitives shared across features.       |
-| `hooks/`           | Reusable React hooks shared across features.                         |
 | `shared/types/`    | Types shared across features and the IPC boundary.                   |
 | `shared/ipc/`      | Typed wrappers around Tauri commands (`client.ts`, `commands.ts`).   |
 | `shared/config/`   | Typed access to build-time env config.                               |
@@ -51,7 +49,7 @@ type. Shared, cross-feature building blocks live under `shared/`.
 | `styles/`          | Global styles and theme.                                             |
 
 A feature folder owns its own components, hooks, and types; it only promotes
-something to `components/`, `hooks/`, or `shared/` once a second feature needs it.
+something to `components/` or `shared/` once a second feature needs it.
 
 ## Backend layout (`src-tauri/src/`)
 

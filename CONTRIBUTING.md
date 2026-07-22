@@ -30,7 +30,7 @@ Run `pnpm lint:fix` to auto-apply formatting and safe lint fixes.
   Respect the layering: the frontend talks to Rust only through
   `src/shared/ipc/commands.ts`.
 - **Feature-first.** New UI work goes under `src/features/<feature>/`. Promote
-  code to `components/`, `hooks/`, or `shared/` only when a second feature needs it.
+  code to `components/` or `shared/` only when a second feature needs it.
 - **Single responsibility.** One job per module. Keep functions small (roughly
   ≤ 50 lines) and prefer pure functions.
 - **Strict typing.** No `any`. Types crossing the IPC boundary live in
